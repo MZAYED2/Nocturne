@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">جسر نوكتورن</string>
+    <string name="bridge_status_title">جسر نوكتورن (Nocturne Bridge)</string>
+    <string name="bridge_ready">جاهز لاستقبال وتحديث وشوش الساعة من تطبيق Nocturne.</string>
+    <string name="grant_permission_btn">منح إذن تفعيل الواجهة تلقائياً</string>
+    <string name="permission_granted">تم منح الإذن: سيتم تفعيل الواجهات مباشرة بعد تثبيتها.</string>
+</resources>

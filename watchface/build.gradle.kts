@@ -3,18 +3,17 @@ plugins {
 }
 
 android {
-    namespace = "com.mohamedzayed.nocturne.watchface"
+    namespace = "com.mohamedzayed.nocturne.wear.watchfacepush.nocturne"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.mohamedzayed.nocturne.watchface"
+        applicationId = "com.mohamedzayed.nocturne.wear.watchfacepush.nocturne"
         minSdk = 34
         targetSdk = 36
         versionCode = providers.gradleProperty("releaseVersionCode").orElse("1").get().toInt()
         versionName = providers.gradleProperty("releaseVersionName").orElse("1.0").get()
-
     }
 
     val releaseKeystorePath = providers.environmentVariable("ANDROID_KEYSTORE_PATH").orNull

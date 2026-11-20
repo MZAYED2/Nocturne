@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Nocturne Bridge</string>
+    <string name="bridge_status_title">Nocturne Bridge</string>
+    <string name="bridge_ready">Ready for Watch Face Push sync from Nocturne phone app.</string>
+    <string name="grant_permission_btn">Grant Activation Permission</string>
+    <string name="permission_granted">Permission Granted: Watch faces can be set active automatically.</string>
+</resources>

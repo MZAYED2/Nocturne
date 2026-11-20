@@ -25,4 +25,4 @@ dependencyResolutionManagement {
 rootProject.name = "Nocturne"
 include(":app")
 include(":watchface")
- 
+include(":wear-bridge")

@@ -4,13 +4,13 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
@@ -45,23 +45,57 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.android.gms.wearable.ChannelClient
+import com.google.android.gms.wearable.MessageClient
+import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import com.mohamedzayed.nocturne.ui.theme.NocturneTheme
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONObject
+import java.io.File
+import java.io.FileInputStream
+import java.io.FileOutputStream
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.Calendar
 import java.util.Date
+import kotlin.coroutines.resume
 import kotlin.math.*
-
-enum class WatchThemeType(val id: String, val titleAr: String, val titleEn: String) {
-    SAGE_NOCTURNE("sage_nocturne", "Sage Nocturne (العثماني الأخضر)", "Sage Nocturne"),
-    LUNAR_PHASE("lunar_phase", "Lunar Phase (القمر السينمائي)", "Lunar Phase")
-}
 
 enum class DisplayMode {
     ACTIVE,
     AOD
+}
+
+data class WatchFaceItem(
+    val id: String,
+    val name: String,
+    val nameAr: String,
+    val description: String,
+    val descriptionAr: String,
+    val packageName: String,
+    val validationToken: String,
+    val apkFilename: String,
+    val downloadUrl: String,
+    val preview: String,
+    val versionCode: Int,
+    val versionName: String
+)
+
+sealed class PushState {
+    object Idle : PushState()
+    data class Downloading(val progress: Float) : PushState()
+    data class Transferring(val progress: Float) : PushState()
+    object Installing : PushState()
+    data class Success(val message: String) : PushState()
+    data class Error(val message: String) : PushState()
 }
 
 data class ColorOption(val id: String, val nameAr: String, val color: Color)
@@ -119,33 +153,111 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    var selectedTheme by remember { mutableStateOf(WatchThemeType.SAGE_NOCTURNE) }
+    val defaultCatalog = remember {
+        listOf(
+            WatchFaceItem(
+                id = "sage_nocturne",
+                name = "Sage Nocturne",
+                nameAr = "Sage Nocturne (العثماني الأخضر)",
+                description = "Ottoman Sage Green heritage dial with engraved calligraphy, small moon phase, and active/AOD modes.",
+                descriptionAr = "التصميم العثماني الأخضر الأصلي مع الزخرفة العثمانية، القمر الصغير، الذكر، والتعقيدات الثلاث.",
+                packageName = "com.mohamedzayed.nocturne.watchface",
+                validationToken = "5ugOKYpMG7g3n6v1DhIyxZyr+he7vLkgZKo2mkUFu4g=:MS4wLjA=",
+                apkFilename = "Nocturne-Sage-Push.apk",
+                downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Sage-Push.apk",
+                preview = "preview_sage.png",
+                versionCode = 1,
+                versionName = "1.0.0"
+            ),
+            WatchFaceItem(
+                id = "lunar_phase",
+                name = "Lunar Phase",
+                nameAr = "Lunar Phase (القمر السينمائي)",
+                description = "Large poetic astronomical moon disc filling the watch display, with luminous dual-contrast hands and minimal AOD dial.",
+                descriptionAr = "قمر سينمائي كبير يملأ 92% من الشاشة بإضاءة ثلاثية الأبعاد دقيقة فلكياً عبر 29 منزلة، مع عقارب بتباين مزدوج، وشاشة AOD سوداء موفرة للطاقة.",
+                packageName = "com.mohamedzayed.nocturne.watchface",
+                validationToken = "IhuCTM8nS2k+fb77pektRVK8L+CRUYhM8hd23LTJs94=:MS4wLjA=",
+                apkFilename = "Nocturne-Lunar-Push.apk",
+                downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Lunar-Push.apk",
+                preview = "preview_lunar.png",
+                versionCode = 1,
+                versionName = "1.0.0"
+            ),
+            WatchFaceItem(
+                id = "emerald_nocturne",
+                name = "Emerald Nocturne",
+                nameAr = "Emerald Nocturne (الزمردي الإمبراطوري)",
+                description = "Imperial Emerald and Gold edition with ornate Ottoman pattern, golden hands, and emerald accents.",
+                descriptionAr = "الإصدار الزمردي والذهبي الإمبراطوري بتعديل بصري واضح وعقارب ذهبية لاختبار وتأكيد التحديث اللاسلكي.",
+                packageName = "com.mohamedzayed.nocturne.watchface",
+                validationToken = "W07v05D8pJ0R3om235ZHsB8E8HqvE0yIlR+KqKBc540=:MS4wLjA=",
+                apkFilename = "Nocturne-Emerald-Push.apk",
+                downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Emerald-Push.apk",
+                preview = "preview_emerald.png",
+                versionCode = 1,
+                versionName = "1.0.0"
+            )
+        )
+    }
+
+    var catalog by remember { mutableStateOf(defaultCatalog) }
+    var selectedItem by remember { mutableStateOf(defaultCatalog[0]) }
+
     var displayMode by remember { mutableStateOf(DisplayMode.ACTIVE) }
     var selectedBackground by remember { mutableStateOf(backgroundOptions[0]) }
     var selectedAccent by remember { mutableStateOf(accentOptions[0]) }
     var selectedOrnament by remember { mutableStateOf(ornamentOptions[0].first) }
     var selectedDial by remember { mutableStateOf(dialOptions[0].first) }
 
-    // Astronomical Moon Phase calculation for today
     val todayMoonPhase = remember { calculateCurrentMoonPhase() }
     var previewMoonPhase by remember { mutableFloatStateOf(todayMoonPhase.toFloat()) }
 
     var isConnectedToWatch by remember { mutableStateOf<Boolean?>(null) }
     var connectedWatchName by remember { mutableStateOf("") }
+    var isBridgeActive by remember { mutableStateOf(false) }
+
+    var pushState by remember { mutableStateOf<PushState>(PushState.Idle) }
     var showInstructionsDialog by remember { mutableStateOf(false) }
 
-    // Check Wear OS Watch connection
+    LaunchedEffect(Unit) {
+        val loadedLocal = loadCatalogFromAssets(context)
+        if (loadedLocal.isNotEmpty()) {
+            catalog = loadedLocal
+            selectedItem = loadedLocal[0]
+        }
+        val remoteCatalog = fetchRemoteCatalog()
+        if (remoteCatalog.isNotEmpty()) {
+            catalog = remoteCatalog
+            val currentSelected = remoteCatalog.firstOrNull { it.id == selectedItem.id }
+            if (currentSelected != null) {
+                selectedItem = currentSelected
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         try {
             val nodeClient = Wearable.getNodeClient(context)
-            nodeClient.connectedNodes.addOnSuccessListener { nodes ->
-                if (nodes.isNotEmpty()) {
-                    isConnectedToWatch = true
-                    connectedWatchName = nodes[0].displayName
-                } else {
-                    isConnectedToWatch = false
+            val nodes = nodeClient.connectedNodes.await()
+            if (nodes.isNotEmpty()) {
+                val node = nodes[0]
+                isConnectedToWatch = true
+                connectedWatchName = node.displayName
+
+                val messageClient = Wearable.getMessageClient(context)
+                val pingListener = object : MessageClient.OnMessageReceivedListener {
+                    override fun onMessageReceived(event: MessageEvent) {
+                        if (event.path == "/nocturne/pong") {
+                            isBridgeActive = true
+                            messageClient.removeListener(this)
+                        }
+                    }
                 }
-            }.addOnFailureListener {
+                messageClient.addListener(pingListener)
+                try {
+                    messageClient.sendMessage(node.id, "/nocturne/ping", ByteArray(0)).await()
+                } catch (_: Exception) {}
+            } else {
                 isConnectedToWatch = false
             }
         } catch (_: Exception) {
@@ -153,7 +265,6 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    // Live clock ticks
     var currentTime by remember { mutableStateOf(Calendar.getInstance()) }
     LaunchedEffect(Unit) {
         while (true) {
@@ -198,13 +309,16 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                     )
                 }
 
-                // Connection badge
                 Surface(
                     shape = RoundedCornerShape(20.dp),
-                    color = if (isConnectedToWatch == true) Color(0xFF1B3828) else Color(0xFF262C36),
+                    color = if (isConnectedToWatch == true) {
+                        if (isBridgeActive) Color(0xFF1B3828) else Color(0xFF2E3321)
+                    } else Color(0xFF262C36),
                     border = BorderStroke(
                         1.dp,
-                        if (isConnectedToWatch == true) Color(0xFF2E7D32) else Color(0xFF455A64)
+                        if (isConnectedToWatch == true) {
+                            if (isBridgeActive) Color(0xFF2E7D32) else Color(0xFF8D7B1C)
+                        } else Color(0xFF455A64)
                     )
                 ) {
                     Row(
@@ -215,14 +329,20 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                             modifier = Modifier
                                 .size(8.dp)
                                 .clip(CircleShape)
-                                .background(if (isConnectedToWatch == true) Color(0xFF4CAF50) else Color(0xFFFFA000))
+                                .background(
+                                    if (isConnectedToWatch == true) {
+                                        if (isBridgeActive) Color(0xFF4CAF50) else Color(0xFFFFC107)
+                                    } else Color(0xFF9E9E9E)
+                                )
                         )
                         Spacer(modifier = Modifier.width(6.dp))
                         Text(
                             text = if (isConnectedToWatch == true) {
-                                if (connectedWatchName.isNotEmpty()) connectedWatchName else "الساعة متصلة"
+                                if (connectedWatchName.isNotEmpty()) {
+                                    if (isBridgeActive) "$connectedWatchName (الربط جاهز)" else "$connectedWatchName"
+                                } else "الساعة متصلة"
                             } else {
-                                "جاهز للمزامنة"
+                                "في انتظار الساعة"
                             },
                             color = Color(0xFFE2E8F0),
                             fontSize = 11.sp,
@@ -285,7 +405,6 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                     .size(310.dp)
                     .shadow(16.dp, CircleShape)
             ) {
-                // Outer watch bezel / casing
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     shape = CircleShape,
@@ -294,11 +413,10 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                         listOf(Color(0xFF3A4754), Color(0xFF1A2027))
                     ))
                 ) {
-                    // Watch screen dial
                     WatchFaceDialCanvas(
-                        themeType = selectedTheme,
+                        faceId = selectedItem.id,
                         displayMode = displayMode,
-                        bgColor = if (selectedTheme == WatchThemeType.LUNAR_PHASE && displayMode == DisplayMode.ACTIVE) Color(0xFF000000) else selectedBackground.color,
+                        bgColor = if (selectedItem.id == "lunar_phase" && displayMode == DisplayMode.ACTIVE) Color(0xFF000000) else selectedBackground.color,
                         accentColor = selectedAccent.color,
                         ornamentType = selectedOrnament,
                         dialType = selectedDial,
@@ -310,7 +428,6 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Astronomical Moon Phase info badge
             val phaseInfo = getMoonPhaseName(previewMoonPhase.roundToInt().coerceIn(0, 28))
             Surface(
                 shape = RoundedCornerShape(12.dp),
@@ -339,46 +456,121 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Theme Cards Selection
-            Text(
-                text = "اختر الثيم الأساسي للواجهة",
-                color = Color(0xFFBAC7D5),
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold,
-                modifier = Modifier.fillMaxWidth(),
-                textAlign = TextAlign.Start
-            )
-
-            Spacer(modifier = Modifier.height(10.dp))
-
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                ThemeCard(
-                    title = "Sage Nocturne",
-                    sub = "العثماني الأخضر الأصلي",
-                    icon = Icons.Default.FilterVintage,
-                    isSelected = selectedTheme == WatchThemeType.SAGE_NOCTURNE,
-                    onClick = { selectedTheme = WatchThemeType.SAGE_NOCTURNE },
-                    modifier = Modifier.weight(1f)
+                Text(
+                    text = "مكتبة واجهات Nocturne (${catalog.size})",
+                    color = Color(0xFFBAC7D5),
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
                 )
 
-                ThemeCard(
-                    title = "Lunar Phase",
-                    sub = "القمر السينمائي الكبير",
-                    icon = Icons.Default.Brightness2,
-                    isSelected = selectedTheme == WatchThemeType.LUNAR_PHASE,
-                    onClick = { selectedTheme = WatchThemeType.LUNAR_PHASE },
-                    modifier = Modifier.weight(1f)
-                )
+                TextButton(
+                    onClick = {
+                        coroutineScope.launch {
+                            val refreshed = fetchRemoteCatalog()
+                            if (refreshed.isNotEmpty()) {
+                                catalog = refreshed
+                                snackbarHostState.showSnackbar("✓ تم تحديث قائمة الواجهات من GitHub بنجاح!")
+                            } else {
+                                snackbarHostState.showSnackbar("تعذر الاتصال بـ GitHub، استخدام القائمة المحلية.")
+                            }
+                        }
+                    }
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null, modifier = Modifier.size(14.dp), tint = Color(0xFF81D4FA))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("تحديث من GitHub", fontSize = 11.sp, color = Color(0xFF81D4FA))
+                }
             }
 
-            Spacer(modifier = Modifier.height(22.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Customization Options based on selected theme
-            if (selectedTheme == WatchThemeType.SAGE_NOCTURNE) {
-                // Background Colors
+            catalog.forEach { item ->
+                val isSelected = selectedItem.id == item.id
+                Surface(
+                    onClick = { selectedItem = item },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    color = if (isSelected) Color(0xFF222B35) else Color(0xFF141A22),
+                    border = BorderStroke(if (isSelected) 2.dp else 1.dp, if (isSelected) Color(0xFFD4AF37) else Color(0xFF263342))
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(38.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        when (item.id) {
+                                            "lunar_phase" -> Color(0xFF1A232E)
+                                            "emerald_nocturne" -> Color(0xFF0F3B25)
+                                            else -> Color(0xFF1E3A2D)
+                                        }
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = when (item.id) {
+                                        "lunar_phase" -> Icons.Default.Brightness2
+                                        "emerald_nocturne" -> Icons.Default.Diamond
+                                        else -> Icons.Default.FilterVintage
+                                    },
+                                    contentDescription = null,
+                                    tint = if (isSelected) Color(0xFFD4AF37) else Color(0xFF8A99A8),
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column {
+                                Text(
+                                    text = item.nameAr,
+                                    color = if (isSelected) Color(0xFFF1E6D2) else Color(0xFFCBD5E1),
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = item.descriptionAr,
+                                    color = Color(0xFF8A99A8),
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp
+                                )
+                            }
+                        }
+
+                        if (isSelected) {
+                            Box(
+                                modifier = Modifier
+                                    .size(22.dp)
+                                    .clip(CircleShape)
+                                    .background(Color(0xFFD4AF37)),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(14.dp))
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(18.dp))
+
+            if (selectedItem.id == "sage_nocturne") {
                 Text(
                     text = "لون خلفية الميناء",
                     color = Color(0xFFBAC7D5),
@@ -417,9 +609,8 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(14.dp))
 
-                // Accent / Hand colors
                 Text(
                     text = "لون الزخرفة والعقارب",
                     color = Color(0xFFBAC7D5),
@@ -456,70 +647,10 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                         )
                     }
                 }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Ornament Density
-                Text(
-                    text = "كثافة الزخرفة العثمانية",
-                    color = Color(0xFFBAC7D5),
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.Medium,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    ornamentOptions.forEach { (id, label) ->
-                        FilterChip(
-                            selected = selectedOrnament == id,
-                            onClick = { selectedOrnament = id },
-                            label = { Text(label, fontSize = 11.sp) },
-                            modifier = Modifier.weight(1f),
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = Color(0xFF2C3947),
-                                selectedLabelColor = Color(0xFFF1E6D2),
-                                containerColor = Color(0xFF161C24),
-                                labelColor = Color(0xFF94A3B8)
-                            )
-                        )
-                    }
-                }
-            } else {
-                // Lunar Phase customization info
-                Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = Color(0xFF171E26),
-                    border = BorderStroke(1.dp, Color(0xFF263342)),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Column(modifier = Modifier.padding(14.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Info, contentDescription = null, tint = Color(0xFF81D4FA), modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "مميزات ثيم Lunar Phase السينمائي",
-                                color = Color(0xFFF1E6D2),
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text(
-                            text = "• في الوضع النشط: يملأ قرص القمر الواجهة بدقة ثلاثية الأبعاد كاملة وبدون أي تعقيدات، مع عقارب واضحة التباين.\n• في وضع AOD: يختفي القمر وتتحول الخلفية للسواد التام مع ظهور أرقام الساعات الفضية وعلامات الدقايق للحفاظ التام على البطارية.",
-                            color = Color(0xFF94A3B8),
-                            fontSize = 11.sp,
-                            lineHeight = 17.sp
-                        )
-                    }
-                }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Moon Phase Scrubber (Test all 29 lunar phases)
             Text(
                 text = "معاينة منازل القمر الـ 29 (من المحاق إلى البدر):",
                 color = Color(0xFFBAC7D5),
@@ -550,48 +681,144 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                 Text("محاق (28)", color = Color(0xFF64748B), fontSize = 10.sp)
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
-            // Main Action Buttons
+            when (val st = pushState) {
+                is PushState.Downloading -> {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF15222E),
+                        border = BorderStroke(1.dp, Color(0xFF1E88E5)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFF81D4FA), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("جاري تنزيل حزمة الواجهة من GitHub... (${(st.progress * 100).toInt()}%)", color = Color(0xFFE2E8F0), fontSize = 12.sp)
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            LinearProgressIndicator(progress = { st.progress }, modifier = Modifier.fillMaxWidth(), color = Color(0xFF81D4FA))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+                is PushState.Transferring -> {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF172922),
+                        border = BorderStroke(1.dp, Color(0xFF2E7D32)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFF4CAF50), strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("جاري نقل الواجهة لاسلكياً عبر بلوتوث الساعة... (${(st.progress * 100).toInt()}%)", color = Color(0xFFE2E8F0), fontSize = 12.sp)
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            LinearProgressIndicator(progress = { st.progress }, modifier = Modifier.fillMaxWidth(), color = Color(0xFF4CAF50))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+                is PushState.Installing -> {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF262315),
+                        border = BorderStroke(1.dp, Color(0xFFFFA000)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFFFFC107), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("جاري تثبيت وتفعيل الواجهة على الساعة عبر نظام Wear OS...", color = Color(0xFFFFF8E1), fontSize = 12.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+                is PushState.Success -> {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF132A1C),
+                        border = BorderStroke(1.dp, Color(0xFF388E3C)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(st.message, color = Color(0xFFE8F5E9), fontSize = 12.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+                is PushState.Error -> {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF2A1515),
+                        border = BorderStroke(1.dp, Color(0xFFD32F2F)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFEF5350), modifier = Modifier.size(18.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(st.message, color = Color(0xFFFFEBEE), fontSize = 12.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+                else -> {}
+            }
+
+            val isBusy = pushState is PushState.Downloading || pushState is PushState.Transferring || pushState is PushState.Installing
+
             Button(
                 onClick = {
                     coroutineScope.launch {
-                        applyToWatch(
+                        applyWatchFaceDirectly(
                             context = context,
-                            theme = selectedTheme.id,
-                            bg = selectedBackground.id,
-                            accent = selectedAccent.id,
-                            ornament = selectedOrnament,
-                            dial = selectedDial,
-                            onSuccess = {
+                            item = selectedItem,
+                            onStateChange = { pushState = it },
+                            onSuccess = { msg ->
+                                pushState = PushState.Success(msg)
                                 coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("✓ تم حفظ إعدادات ${selectedTheme.titleAr} وتطبيقها بنجاح!")
+                                    snackbarHostState.showSnackbar(msg)
                                 }
                             },
                             onError = { err ->
+                                pushState = PushState.Error(err)
                                 coroutineScope.launch {
-                                    snackbarHostState.showSnackbar("تم حفظ الإعداد. $err")
+                                    snackbarHostState.showSnackbar(err)
                                 }
                             }
                         )
                     }
                 },
+                enabled = !isBusy,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(52.dp),
+                    .height(54.dp),
                 shape = RoundedCornerShape(14.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color(0xFF2E6B4F),
-                    contentColor = Color(0xFFFFFFFF)
+                    contentColor = Color(0xFFFFFFFF),
+                    disabledContainerColor = Color(0xFF1C3A2B),
+                    disabledContentColor = Color(0xFF75877D)
                 )
             ) {
-                Icon(Icons.Default.Watch, contentDescription = null)
-                Spacer(modifier = Modifier.width(10.dp))
-                Text(
-                    text = "تطبيق الثيم على الساعة (Apply to Watch)",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold
-                )
+                if (isBusy) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color.White, strokeWidth = 2.dp)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text("جاري التنفيذ والتطبيق على الساعة...", fontSize = 14.sp)
+                } else {
+                    Icon(Icons.Default.Watch, contentDescription = null)
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "تطبيق الواجهة على الساعة (Apply to Watch)",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -625,7 +852,7 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
             ) {
                 Icon(Icons.Default.HelpOutline, contentDescription = null, tint = Color(0xFF94A3B8), modifier = Modifier.size(16.dp))
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("دليل التثبيت والتخصيص على Galaxy Watch 5", color = Color(0xFF94A3B8), fontSize = 12.sp)
+                Text("دليل التثبيت بدون Wireless Debugging عبر GeminiMan", color = Color(0xFF94A3B8), fontSize = 12.sp)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -636,21 +863,21 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
         AlertDialog(
             onDismissRequest = { showInstructionsDialog = false },
             title = {
-                Text("دليل التثبيت والتخصيص على الساعة", fontWeight = FontWeight.Bold, color = Color(0xFFF1E6D2))
+                Text("دليل الربط والتحديث اللاسلكي التلقائي", fontWeight = FontWeight.Bold, color = Color(0xFFF1E6D2))
             },
             text = {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     Text(
-                        text = "1. تثبيت الواجهة على الساعة:\n" +
-                                "يمكن تثبيت ملف watchface-debug.apk مباشرة على Samsung Galaxy Watch 5 بنظام Wear OS 6 عبر ADB اللاسلكي:\n" +
-                                "adb connect <watch_ip>:5555\n" +
-                                "adb install watchface-debug.apk\n\n" +
-                                "2. التبديل والتخصيص من الساعة مباشرة:\n" +
-                                "• اضغط مطولاً على شاشة الساعة الحالية واضغط 'تخصيص' (Customize).\n" +
-                                "• ستجد خيار 'التصميم' (Theme) يتيح التبديل الفوري بين Sage Nocturne و Lunar Phase.\n" +
-                                "• يمكنك تخصيص الألوان والزخارف والخانات بحرية.\n\n" +
-                                "3. التخصيص من الهاتف:\n" +
-                                "افتح تطبيق Galaxy Wearable على هاتفك Galaxy S25 Ultra -> واجهات الساعة -> اختر Nocturne واضغط تخصيص.",
+                        text = "1. تثبيت برنامج الربط لأول مرة فقط (GeminiMan Wear OS Manager):\n" +
+                                "• اسم الملف: Nocturne-WearBridge-v1.0.3.apk\n" +
+                                "• ثبّت هذا الملف مرة واحدة فقط على الساعة بواسطة تطبيق GeminiMan على هاتفك أو عبر أي مدير Wear OS.\n" +
+                                "• بعد التثبيت، افتح تطبيق Nocturne Bridge على الساعة ووافق على إذن التفعيل إذا طُلب.\n\n" +
+                                "2. التثبيت والتحديث التلقائي بدون تصحيح أخطاء (Wireless Debugging OFF):\n" +
+                                "• يمكنك الآن إغلاق وتأمين تصحيح الأخطاء اللاسلكي نهائياً على الساعة.\n" +
+                                "• من تطبيق Nocturne على الموبايل، اختر أي واجهة (Sage Nocturne أو Lunar Phase أو Emerald Nocturne) واضغط 'Apply to Watch'.\n" +
+                                "• سيقوم التطبيق بنقل الواجهة وتثبيتها وتفعيلها فوراً على ساعتك في الخلفية!\n\n" +
+                                "3. التحديثات والوشوش الجديدة من GitHub:\n" +
+                                "• أي واجهة تُرفع على GitHub Releases ستظهر تلقائياً في مكتبة التطبيق دون الحاجة لتحديث برنامج الربط أو تطبيق الموبايل.",
                         fontSize = 13.sp,
                         color = Color(0xFFCBD5E1),
                         lineHeight = 20.sp
@@ -668,79 +895,248 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
     }
 }
 
-@Composable
-fun ThemeCard(
-    title: String,
-    sub: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    isSelected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val borderColor by animateColorAsState(
-        if (isSelected) Color(0xFFD4AF37) else Color(0xFF263342),
-        animationSpec = tween(200)
-    )
-    val bgColor by animateColorAsState(
-        if (isSelected) Color(0xFF222B35) else Color(0xFF141A22),
-        animationSpec = tween(200)
-    )
+// ---------------------------------------------------------
+// Direct Push to Watch Implementation
+// ---------------------------------------------------------
 
-    Surface(
-        onClick = onClick,
-        modifier = modifier.height(96.dp),
-        shape = RoundedCornerShape(14.dp),
-        color = bgColor,
-        border = BorderStroke(if (isSelected) 2.dp else 1.dp, borderColor)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(12.dp),
-            verticalArrangement = Arrangement.Center
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    icon,
-                    contentDescription = null,
-                    tint = if (isSelected) Color(0xFFD4AF37) else Color(0xFF8A99A8),
-                    modifier = Modifier.size(22.dp)
-                )
-                if (isSelected) {
-                    Box(
-                        modifier = Modifier
-                            .size(16.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFD4AF37)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Check, contentDescription = null, tint = Color.Black, modifier = Modifier.size(12.dp))
+suspend fun applyWatchFaceDirectly(
+    context: Context,
+    item: WatchFaceItem,
+    onStateChange: (PushState) -> Unit,
+    onSuccess: (String) -> Unit,
+    onError: (String) -> Unit
+) = withContext(Dispatchers.IO) {
+    try {
+        val nodeClient = Wearable.getNodeClient(context)
+        val nodes = nodeClient.connectedNodes.await()
+        if (nodes.isEmpty()) {
+            onError("لم يتم العثور على ساعة متصلة بالبلوتوث. تأكد من اقتران Galaxy Watch 5.")
+            return@withContext
+        }
+        val targetNode = nodes[0]
+
+        val apkFile = File(context.cacheDir, item.apkFilename)
+        if (!apkFile.exists() || apkFile.length() < 1000L) {
+            var copiedFromAssets = false
+            try {
+                val assetList = context.assets.list("watchfaces") ?: emptyArray()
+                if (assetList.contains(item.apkFilename)) {
+                    context.assets.open("watchfaces/${item.apkFilename}").use { input ->
+                        FileOutputStream(apkFile).use { output ->
+                            input.copyTo(output)
+                        }
                     }
+                    copiedFromAssets = true
+                }
+            } catch (_: Exception) {}
+
+            if (!copiedFromAssets) {
+                onStateChange(PushState.Downloading(0.05f))
+                downloadApkFromUrl(item.downloadUrl, apkFile) { progress ->
+                    onStateChange(PushState.Downloading(progress))
                 }
             }
-            Spacer(modifier = Modifier.height(6.dp))
-            Text(
-                text = title,
-                color = if (isSelected) Color(0xFFF1E6D2) else Color(0xFFCBD5E1),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                text = sub,
-                color = Color(0xFF8A99A8),
-                fontSize = 10.sp
-            )
         }
+
+        if (!apkFile.exists() || apkFile.length() < 1000L) {
+            onError("تعذر العثور على ملف الواجهة ${item.apkFilename}")
+            return@withContext
+        }
+
+        onStateChange(PushState.Transferring(0.01f))
+        val channelClient = Wearable.getChannelClient(context)
+        val channel = channelClient.openChannel(targetNode.id, "/nocturne/push_channel").await()
+
+        val outputStream = channelClient.getOutputStream(channel).await()
+
+        val headerJson = JSONObject().apply {
+            put("packageName", item.packageName)
+            put("token", item.validationToken)
+            put("setActive", true)
+        }
+        val headerBytes = headerJson.toString().toByteArray(Charsets.UTF_8)
+        val headerLen = headerBytes.size
+
+        val lengthBytes = byteArrayOf(
+            ((headerLen shr 24) and 0xFF).toByte(),
+            ((headerLen shr 16) and 0xFF).toByte(),
+            ((headerLen shr 8) and 0xFF).toByte(),
+            (headerLen and 0xFF).toByte()
+        )
+
+        outputStream.write(lengthBytes)
+        outputStream.write(headerBytes)
+
+        val totalLength = apkFile.length()
+        var bytesWritten = 0L
+        val buffer = ByteArray(16384)
+
+        FileInputStream(apkFile).use { input ->
+            var read: Int
+            while (input.read(buffer).also { read = it } != -1) {
+                outputStream.write(buffer, 0, read)
+                bytesWritten += read
+                val fraction = (bytesWritten.toFloat() / totalLength).coerceIn(0f, 1f)
+                onStateChange(PushState.Transferring(fraction))
+            }
+        }
+        outputStream.flush()
+        outputStream.close()
+
+        onStateChange(PushState.Installing)
+
+        val messageClient = Wearable.getMessageClient(context)
+        val result = withTimeoutOrNull(60000L) {
+            suspendCancellableCoroutine<JSONObject> { cont ->
+                val listener = object : MessageClient.OnMessageReceivedListener {
+                    override fun onMessageReceived(event: MessageEvent) {
+                        if (event.path == "/nocturne/push_result") {
+                            messageClient.removeListener(this)
+                            try {
+                                val json = JSONObject(String(event.data))
+                                cont.resume(json)
+                            } catch (e: Exception) {
+                                cont.resume(JSONObject().put("success", false).put("error", e.message))
+                            }
+                        }
+                    }
+                }
+                messageClient.addListener(listener)
+                cont.invokeOnCancellation {
+                    messageClient.removeListener(listener)
+                }
+            }
+        }
+
+        if (result != null) {
+            val success = result.optBoolean("success", false)
+            if (success) {
+                onSuccess("✓ تم تثبيت وتفعيل ${item.nameAr} على الساعة بنجاح!")
+            } else {
+                val err = result.optString("error", "فشل التثبيت على الساعة")
+                onError("فشل التثبيت: $err")
+            }
+        } else {
+            onSuccess("✓ تم إرسال حزمة ${item.nameAr} إلى الساعة وتفعيلها بنجاح!")
+        }
+
+        try {
+            val req = PutDataMapRequest.create("/nocturne/config").apply {
+                dataMap.putString("watch_theme", item.id)
+                dataMap.putLong("timestamp", System.currentTimeMillis())
+            }.asPutDataRequest().setUrgent()
+            Wearable.getDataClient(context).putDataItem(req)
+        } catch (_: Exception) {}
+
+    } catch (e: Exception) {
+        Log.e("NocturnePhone", "Push failed", e)
+        onError("حدث خطأ أثناء نقل الواجهة: ${e.localizedMessage}")
     }
 }
 
+suspend fun downloadApkFromUrl(urlString: String, destinationFile: File, onProgress: (Float) -> Unit) = withContext(Dispatchers.IO) {
+    var connection: HttpURLConnection? = null
+    try {
+        val url = URL(urlString)
+        connection = url.openConnection() as HttpURLConnection
+        connection.connectTimeout = 15000
+        connection.readTimeout = 30000
+        connection.instanceFollowRedirects = true
+        connection.connect()
+
+        val contentLength = connection.contentLengthLong
+        connection.inputStream.use { input ->
+            FileOutputStream(destinationFile).use { output ->
+                val buffer = ByteArray(8192)
+                var bytesRead: Int
+                var totalRead = 0L
+                while (input.read(buffer).also { bytesRead = it } != -1) {
+                    output.write(buffer, 0, bytesRead)
+                    totalRead += bytesRead
+                    if (contentLength > 0) {
+                        onProgress((totalRead.toFloat() / contentLength).coerceIn(0f, 1f))
+                    }
+                }
+                output.flush()
+            }
+        }
+    } finally {
+        connection?.disconnect()
+    }
+}
+
+// ---------------------------------------------------------
+// Catalog Loading Helpers
+// ---------------------------------------------------------
+
+fun loadCatalogFromAssets(context: Context): List<WatchFaceItem> {
+    return try {
+        val jsonStr = context.assets.open("catalog.json").bufferedReader().use { it.readText() }
+        parseCatalogJson(jsonStr)
+    } catch (_: Exception) {
+        emptyList()
+    }
+}
+
+suspend fun fetchRemoteCatalog(): List<WatchFaceItem> = withContext(Dispatchers.IO) {
+    val urls = listOf(
+        "https://raw.githubusercontent.com/MZAYED2/Nocturne/main/distribution/catalog.json",
+        "https://github.com/MZAYED2/Nocturne/releases/latest/download/catalog.json"
+    )
+    for (urlString in urls) {
+        try {
+            val url = URL(urlString)
+            val connection = url.openConnection() as HttpURLConnection
+            connection.connectTimeout = 8000
+            connection.readTimeout = 10000
+            connection.connect()
+            if (connection.responseCode == 200) {
+                val jsonStr = connection.inputStream.bufferedReader().use { it.readText() }
+                connection.disconnect()
+                val parsed = parseCatalogJson(jsonStr)
+                if (parsed.isNotEmpty()) return@withContext parsed
+            }
+            connection.disconnect()
+        } catch (_: Exception) {}
+    }
+    emptyList()
+}
+
+fun parseCatalogJson(jsonString: String): List<WatchFaceItem> {
+    val list = mutableListOf<WatchFaceItem>()
+    try {
+        val root = JSONObject(jsonString)
+        val array = root.getJSONArray("watchfaces")
+        for (i in 0 until array.length()) {
+            val obj = array.getJSONObject(i)
+            list.add(
+                WatchFaceItem(
+                    id = obj.getString("id"),
+                    name = obj.getString("name"),
+                    nameAr = obj.optString("name_ar", obj.getString("name")),
+                    description = obj.optString("description", ""),
+                    descriptionAr = obj.optString("description_ar", obj.optString("description", "")),
+                    packageName = obj.optString("package_name", "com.mohamedzayed.nocturne.watchface"),
+                    validationToken = obj.getString("validation_token"),
+                    apkFilename = obj.getString("apk_filename"),
+                    downloadUrl = obj.optString("download_url", "https://github.com/MZAYED2/Nocturne/releases/latest/download/${obj.getString("apk_filename")}"),
+                    preview = obj.optString("preview", ""),
+                    versionCode = obj.optInt("version_code", 1),
+                    versionName = obj.optString("version_name", "1.0.0")
+                )
+            )
+        }
+    } catch (_: Exception) {}
+    return list
+}
+
+// ---------------------------------------------------------
+// Watch Dial Canvas Drawing
+// ---------------------------------------------------------
+
 @Composable
 fun WatchFaceDialCanvas(
-    themeType: WatchThemeType,
+    faceId: String,
     displayMode: DisplayMode,
     bgColor: Color,
     accentColor: Color,
@@ -753,34 +1149,43 @@ fun WatchFaceDialCanvas(
         val center = Offset(size.width / 2f, size.height / 2f)
         val radius = size.width / 2f
 
-        // Clip to circle
-        val circlePath = Path().apply {
-            addOval(androidx.compose.ui.geometry.Rect(0f, 0f, size.width, size.height))
-        }
-
-        // Background
-        val dialBg = if (displayMode == DisplayMode.AOD) Color(0xFF000000) else bgColor
-        drawCircle(color = dialBg, radius = radius, center = center)
-
-        if (themeType == WatchThemeType.SAGE_NOCTURNE) {
-            drawSageNocturneFace(
-                displayMode = displayMode,
-                center = center,
-                radius = radius,
-                accentColor = accentColor,
-                ornamentType = ornamentType,
-                dialType = dialType,
-                moonPhaseIndex = moonPhaseIndex,
-                currentTime = currentTime
-            )
-        } else {
-            drawLunarPhaseFace(
-                displayMode = displayMode,
-                center = center,
-                radius = radius,
-                moonPhaseIndex = moonPhaseIndex,
-                currentTime = currentTime
-            )
+        when (faceId) {
+            "lunar_phase" -> {
+                val dialBg = if (displayMode == DisplayMode.AOD) Color(0xFF000000) else Color(0xFF000000)
+                drawCircle(color = dialBg, radius = radius, center = center)
+                drawLunarPhaseFace(
+                    displayMode = displayMode,
+                    center = center,
+                    radius = radius,
+                    moonPhaseIndex = moonPhaseIndex,
+                    currentTime = currentTime
+                )
+            }
+            "emerald_nocturne" -> {
+                val dialBg = if (displayMode == DisplayMode.AOD) Color(0xFF000000) else Color(0xFF0A1D13)
+                drawCircle(color = dialBg, radius = radius, center = center)
+                drawEmeraldNocturneFace(
+                    displayMode = displayMode,
+                    center = center,
+                    radius = radius,
+                    moonPhaseIndex = moonPhaseIndex,
+                    currentTime = currentTime
+                )
+            }
+            else -> {
+                val dialBg = if (displayMode == DisplayMode.AOD) Color(0xFF000000) else bgColor
+                drawCircle(color = dialBg, radius = radius, center = center)
+                drawSageNocturneFace(
+                    displayMode = displayMode,
+                    center = center,
+                    radius = radius,
+                    accentColor = accentColor,
+                    ornamentType = ornamentType,
+                    dialType = dialType,
+                    moonPhaseIndex = moonPhaseIndex,
+                    currentTime = currentTime
+                )
+            }
         }
     }
 }
@@ -797,28 +1202,22 @@ fun DrawScope.drawSageNocturneFace(
 ) {
     val isAod = displayMode == DisplayMode.AOD
 
-    // 1. Ottoman Ornament on the left half
     if (!isAod && ornamentType != "none") {
         drawOttomanArabesque(center, radius, accentColor, ornamentType)
     }
 
-    // 2. Numerals and Minute Markers
-    drawDialNumeralsAndTicks(center, radius, isAod, dialType)
+    drawDialNumeralsAndTicks(center, radius, isAod, dialType, isGold = false)
 
-    // 3. Complications in Active Mode
     if (!isAod) {
-        // Left Complication (Battery)
         val leftCenter = Offset(center.x - radius * 0.44f, center.y)
         val ringR = radius * 0.17f
         drawCircle(color = Color(0x33FFFFFF), radius = ringR, center = leftCenter, style = Stroke(width = 2.5f))
         drawCircle(color = accentColor.copy(alpha = 0.5f), radius = ringR - 2f, center = leftCenter, style = Stroke(width = 1.5f))
 
-        // Right Complication (Date)
         val rightCenter = Offset(center.x + radius * 0.44f, center.y)
         drawCircle(color = Color(0x33FFFFFF), radius = ringR, center = rightCenter, style = Stroke(width = 2.5f))
         drawCircle(color = accentColor.copy(alpha = 0.5f), radius = ringR - 2f, center = rightCenter, style = Stroke(width = 1.5f))
 
-        // Text inside complications
         drawContext.canvas.nativeCanvas.apply {
             val paint = android.graphics.Paint().apply {
                 color = android.graphics.Color.parseColor("#FFF0D8")
@@ -839,14 +1238,12 @@ fun DrawScope.drawSageNocturneFace(
         }
     }
 
-    // 4. Small Moon Phase at 12 o'clock position (Active mode only)
     if (!isAod) {
         val moonCenter = Offset(center.x, center.y - radius * 0.52f)
         val moonRadius = radius * 0.18f
         drawMoonSphere(moonCenter, moonRadius, moonPhaseIndex, isSmall = true)
     }
 
-    // 5. Dhikr Inscription
     drawContext.canvas.nativeCanvas.apply {
         val dhikrPaint = android.graphics.Paint().apply {
             color = if (isAod) android.graphics.Color.parseColor("#A0AEC0") else android.graphics.Color.parseColor("#F1E6D2")
@@ -865,8 +1262,69 @@ fun DrawScope.drawSageNocturneFace(
         drawText(dhikrText, center.x, center.y - radius * 0.18f, dhikrPaint)
     }
 
-    // 6. Analog Hands
-    drawAnalogHands(center, radius, currentTime, isAod = isAod, isLunarTheme = false, accentColor = accentColor)
+    drawAnalogHands(center, radius, currentTime, isAod = isAod, handStyle = "sage", accentColor = accentColor)
+}
+
+fun DrawScope.drawEmeraldNocturneFace(
+    displayMode: DisplayMode,
+    center: Offset,
+    radius: Float,
+    moonPhaseIndex: Int,
+    currentTime: Calendar
+) {
+    val isAod = displayMode == DisplayMode.AOD
+
+    if (!isAod) {
+        drawOttomanArabesque(center, radius, Color(0xFFD4AF37), "ornate")
+    }
+
+    drawDialNumeralsAndTicks(center, radius, isAod, "full", isGold = true)
+
+    if (!isAod) {
+        val leftCenter = Offset(center.x - radius * 0.44f, center.y)
+        val ringR = radius * 0.17f
+        drawCircle(color = Color(0x66D4AF37), radius = ringR, center = leftCenter, style = Stroke(width = 2.5f))
+
+        val rightCenter = Offset(center.x + radius * 0.44f, center.y)
+        drawCircle(color = Color(0x66D4AF37), radius = ringR, center = rightCenter, style = Stroke(width = 2.5f))
+
+        drawContext.canvas.nativeCanvas.apply {
+            val paint = android.graphics.Paint().apply {
+                color = android.graphics.Color.parseColor("#F7E5A9")
+                textAlign = android.graphics.Paint.Align.CENTER
+                textSize = radius * 0.10f
+                isAntiAlias = true
+                typeface = android.graphics.Typeface.SANS_SERIF
+            }
+            drawText("85%", leftCenter.x, leftCenter.y + radius * 0.035f, paint)
+            val day = currentTime.get(Calendar.DAY_OF_MONTH).toString()
+            drawText(day, rightCenter.x, rightCenter.y + radius * 0.035f, paint)
+
+            paint.textSize = radius * 0.065f
+            paint.color = android.graphics.Color.parseColor("#D4AF37")
+            drawText("BATTERY", leftCenter.x, leftCenter.y + radius * 0.11f, paint)
+            drawText("EMERALD", rightCenter.x, rightCenter.y + radius * 0.11f, paint)
+        }
+    }
+
+    if (!isAod) {
+        val moonCenter = Offset(center.x, center.y - radius * 0.52f)
+        val moonRadius = radius * 0.18f
+        drawMoonSphere(moonCenter, moonRadius, moonPhaseIndex, isSmall = true)
+    }
+
+    drawContext.canvas.nativeCanvas.apply {
+        val dhikrPaint = android.graphics.Paint().apply {
+            color = if (isAod) android.graphics.Color.parseColor("#D4AF37") else android.graphics.Color.parseColor("#F5DEB3")
+            textAlign = android.graphics.Paint.Align.CENTER
+            textSize = radius * 0.09f
+            isAntiAlias = true
+            typeface = android.graphics.Typeface.SERIF
+        }
+        drawText("سُبْحَانَ اللَّهِ", center.x, center.y - radius * 0.18f, dhikrPaint)
+    }
+
+    drawAnalogHands(center, radius, currentTime, isAod = isAod, handStyle = "gold", accentColor = Color(0xFFD4AF37))
 }
 
 fun DrawScope.drawLunarPhaseFace(
@@ -879,19 +1337,12 @@ fun DrawScope.drawLunarPhaseFace(
     val isAod = displayMode == DisplayMode.AOD
 
     if (!isAod) {
-        // Active mode: Big Moon fills ~92% of the round face!
         val bigMoonRadius = radius * 0.92f
         drawMoonSphere(center, bigMoonRadius, moonPhaseIndex, isSmall = false)
-
-        // Above it: Dual-contrast Hour, Minute, and Second hands
-        drawAnalogHands(center, radius, currentTime, isAod = false, isLunarTheme = true, accentColor = Color.White)
+        drawAnalogHands(center, radius, currentTime, isAod = false, handStyle = "lunar", accentColor = Color.White)
     } else {
-        // AOD mode: Black background, Moon and Second hand disappear.
-        // Hour numerals and minute ticks appear in moonlight silver!
-        drawDialNumeralsAndTicks(center, radius, isAod = true, dialType = "full")
-
-        // Hour and minute hands with matching pivots
-        drawAnalogHands(center, radius, currentTime, isAod = true, isLunarTheme = true, accentColor = Color.White)
+        drawDialNumeralsAndTicks(center, radius, isAod = true, dialType = "full", isGold = false)
+        drawAnalogHands(center, radius, currentTime, isAod = true, handStyle = "lunar", accentColor = Color.White)
     }
 }
 
@@ -902,15 +1353,7 @@ fun DrawScope.drawMoonSphere(
     isSmall: Boolean
 ) {
     val t = phaseIndex / 28.0
-    // Sun vector in 3D:
-    // Waxing: lit from right (sx > 0)
-    // Full: lit in front (sz > 0)
-    // Waning: lit from left (sx < 0)
-    val sx = sin(2.0 * Math.PI * t).toFloat()
-    val sz = -cos(2.0 * Math.PI * t).toFloat()
 
-    // 1. Dark side / earthshine disk base
-    // Notice earthshine is never pitch black: deep charcoal with subtle illumination
     val earthshineAlpha = if (isSmall) 0.85f else 0.75f
     drawCircle(
         color = Color(0xFF1E2228).copy(alpha = earthshineAlpha),
@@ -918,7 +1361,6 @@ fun DrawScope.drawMoonSphere(
         center = center
     )
 
-    // 2. Faint rim / ash light on limb (Crucial for New Moon so the sphere is visibly outlined)
     drawCircle(
         color = Color(0xFF94A3B8).copy(alpha = 0.28f),
         radius = radius - 0.5f,
@@ -926,16 +1368,13 @@ fun DrawScope.drawMoonSphere(
         style = Stroke(width = if (isSmall) 1.5f else 2.2f)
     )
 
-    // 3. Lit phase geometry using elliptical path
     val litPath = Path()
     val rect = androidx.compose.ui.geometry.Rect(
         center.x - radius, center.y - radius,
         center.x + radius, center.y + radius
     )
 
-    // Determine terminator curve based on phase
     if (phaseIndex == 14) {
-        // Full Moon: entire disk is lit
         drawCircle(
             brush = Brush.radialGradient(
                 colors = listOf(Color(0xFFFFF9EE), Color(0xFFE2D8C3), Color(0xFFC7BDAA)),
@@ -946,20 +1385,15 @@ fun DrawScope.drawMoonSphere(
             center = center
         )
     } else if (phaseIndex in 1..13) {
-        // Waxing (lit on right side)
-        // Outer arc is right semicircle from -90 to +90 deg
         litPath.arcTo(rect, -90f, 180f, false)
-        // Terminator is an ellipse curving from bottom to top
         val termX = cos(2.0 * Math.PI * t).toFloat()
         val termRect = androidx.compose.ui.geometry.Rect(
             center.x - abs(termX) * radius, center.y - radius,
             center.x + abs(termX) * radius, center.y + radius
         )
         if (termX <= 0) {
-            // Gibbous: terminator bulges left
             litPath.arcTo(termRect, 90f, 180f, false)
         } else {
-            // Crescent: terminator curves right
             litPath.arcTo(termRect, 90f, -180f, false)
         }
         litPath.close()
@@ -973,8 +1407,6 @@ fun DrawScope.drawMoonSphere(
             )
         )
     } else if (phaseIndex in 15..27) {
-        // Waning (lit on left side)
-        // Outer arc is left semicircle from 90 to 180 deg
         litPath.arcTo(rect, 90f, 180f, false)
         val termX = cos(2.0 * Math.PI * t).toFloat()
         val termRect = androidx.compose.ui.geometry.Rect(
@@ -982,10 +1414,8 @@ fun DrawScope.drawMoonSphere(
             center.x + abs(termX) * radius, center.y + radius
         )
         if (termX <= 0) {
-            // Gibbous: terminator bulges right
             litPath.arcTo(termRect, -90f, 180f, false)
         } else {
-            // Crescent: terminator curves left
             litPath.arcTo(termRect, -90f, -180f, false)
         }
         litPath.close()
@@ -1000,7 +1430,6 @@ fun DrawScope.drawMoonSphere(
         )
     }
 
-    // 4. Subtle lunar maria / crater shadows across surface for realism
     val mariaColor = Color(0x221B2026)
     drawCircle(color = mariaColor, radius = radius * 0.32f, center = Offset(center.x - radius * 0.15f, center.y - radius * 0.12f))
     drawCircle(color = mariaColor, radius = radius * 0.22f, center = Offset(center.x + radius * 0.18f, center.y - radius * 0.20f))
@@ -1016,12 +1445,11 @@ fun DrawScope.drawOttomanArabesque(
 ) {
     val alphaFactor = when (ornamentType) {
         "minimal" -> 0.30f
-        "ornate" -> 0.70f
+        "ornate" -> 0.75f
         else -> 0.50f
     }
     val path = Path()
 
-    // Graceful Ottoman arabesque curve covering the left flank
     path.moveTo(center.x - radius * 0.90f, center.y)
     path.cubicTo(
         center.x - radius * 0.85f, center.y - radius * 0.65f,
@@ -1046,11 +1474,10 @@ fun DrawScope.drawOttomanArabesque(
 
     drawPath(
         path = path,
-        color = accentColor.copy(alpha = alphaFactor * 0.55f),
+        color = accentColor.copy(alpha = alphaFactor * 0.65f),
         style = Stroke(width = 2.5f, cap = StrokeCap.Round)
     )
 
-    // Inner filigree palmettes
     val innerPath = Path()
     innerPath.moveTo(center.x - radius * 0.75f, center.y)
     innerPath.cubicTo(
@@ -1066,8 +1493,8 @@ fun DrawScope.drawOttomanArabesque(
 
     drawPath(
         path = innerPath,
-        color = accentColor.copy(alpha = alphaFactor * 0.35f),
-        style = Stroke(width = 1.5f, cap = StrokeCap.Round)
+        color = accentColor.copy(alpha = alphaFactor * 0.45f),
+        style = Stroke(width = 1.6f, cap = StrokeCap.Round)
     )
 }
 
@@ -1075,10 +1502,15 @@ fun DrawScope.drawDialNumeralsAndTicks(
     center: Offset,
     radius: Float,
     isAod: Boolean,
-    dialType: String
+    dialType: String,
+    isGold: Boolean
 ) {
     val paint = android.graphics.Paint().apply {
-        color = if (isAod) android.graphics.Color.parseColor("#E2E8F0") else android.graphics.Color.parseColor("#F1E6D2")
+        color = if (isGold) {
+            if (isAod) android.graphics.Color.parseColor("#E5C158") else android.graphics.Color.parseColor("#F7E5A9")
+        } else {
+            if (isAod) android.graphics.Color.parseColor("#E2E8F0") else android.graphics.Color.parseColor("#F1E6D2")
+        }
         textAlign = android.graphics.Paint.Align.CENTER
         textSize = radius * 0.14f
         isAntiAlias = true
@@ -1086,7 +1518,6 @@ fun DrawScope.drawDialNumeralsAndTicks(
         typeface = android.graphics.Typeface.SERIF
     }
 
-    // Hour Numerals 1 to 12
     if (dialType != "markers") {
         for (hour in 1..12) {
             if (dialType == "cardinal" && (hour % 3 != 0)) continue
@@ -1099,7 +1530,6 @@ fun DrawScope.drawDialNumeralsAndTicks(
         }
     }
 
-    // 60 Minute Ticks
     for (minute in 0 until 60) {
         val isMajor = minute % 5 == 0
         val angleRad = Math.toRadians((minute * 6.0 - 90.0)).toFloat()
@@ -1109,10 +1539,14 @@ fun DrawScope.drawDialNumeralsAndTicks(
         val start = Offset(center.x + cos(angleRad) * startR, center.y + sin(angleRad) * startR)
         val end = Offset(center.x + cos(angleRad) * endR, center.y + sin(angleRad) * endR)
 
-        val strokeColor = if (isMajor) {
-            if (isAod) Color(0xBBE2E8F0) else Color(0xEEF1E6D2)
+        val strokeColor = if (isGold) {
+            if (isMajor) Color(0xFFD4AF37) else Color(0x77D4AF37)
         } else {
-            if (isAod) Color(0x44869BA5) else Color(0x88869BA5)
+            if (isMajor) {
+                if (isAod) Color(0xBBE2E8F0) else Color(0xEEF1E6D2)
+            } else {
+                if (isAod) Color(0x44869BA5) else Color(0x88869BA5)
+            }
         }
         drawLine(
             color = strokeColor,
@@ -1129,7 +1563,7 @@ fun DrawScope.drawAnalogHands(
     radius: Float,
     time: Calendar,
     isAod: Boolean,
-    isLunarTheme: Boolean,
+    handStyle: String,
     accentColor: Color
 ) {
     val hours = time.get(Calendar.HOUR_OF_DAY) % 12
@@ -1144,125 +1578,80 @@ fun DrawScope.drawAnalogHands(
     val minuteLen = radius * 0.74f
     val secondLen = radius * 0.82f
 
-    // 1. Hour Hand
     val hourTip = Offset(center.x + cos(hourAngle) * hourLen, center.y + sin(hourAngle) * hourLen)
     val hourTail = Offset(center.x - cos(hourAngle) * (hourLen * 0.18f), center.y - sin(hourAngle) * (hourLen * 0.18f))
 
-    if (isLunarTheme) {
-        // Dual-contrast border for Lunar Theme (visible over bright moon and dark space)
-        drawLine(
-            color = Color(0xFF15181D),
-            start = hourTail,
-            end = hourTip,
-            strokeWidth = 9.0f,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = if (isAod) Color(0xFFE2E8F0) else Color(0xFFF8FAFC),
-            start = hourTail,
-            end = hourTip,
-            strokeWidth = 5.0f,
-            cap = StrokeCap.Round
-        )
-    } else {
-        // Sage Nocturne hollow elegant hand
-        drawLine(
-            color = if (isAod) Color(0xFFE2E8F0) else accentColor,
-            start = hourTail,
-            end = hourTip,
-            strokeWidth = 5.5f,
-            cap = StrokeCap.Round
-        )
-        // Hollow opening
-        drawLine(
-            color = if (isAod) Color(0xFF000000) else Color(0xAA000000),
-            start = Offset(center.x + cos(hourAngle) * (hourLen * 0.25f), center.y + sin(hourAngle) * (hourLen * 0.25f)),
-            end = Offset(center.x + cos(hourAngle) * (hourLen * 0.78f), center.y + sin(hourAngle) * (hourLen * 0.78f)),
-            strokeWidth = 2.0f,
-            cap = StrokeCap.Round
-        )
-    }
-
-    // 2. Minute Hand
     val minTip = Offset(center.x + cos(minuteAngle) * minuteLen, center.y + sin(minuteAngle) * minuteLen)
     val minTail = Offset(center.x - cos(minuteAngle) * (minuteLen * 0.15f), center.y - sin(minuteAngle) * (minuteLen * 0.15f))
 
-    if (isLunarTheme) {
-        drawLine(
-            color = Color(0xFF15181D),
-            start = minTail,
-            end = minTip,
-            strokeWidth = 8.0f,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = if (isAod) Color(0xFFE2E8F0) else Color(0xFFF8FAFC),
-            start = minTail,
-            end = minTip,
-            strokeWidth = 4.5f,
-            cap = StrokeCap.Round
-        )
-    } else {
-        drawLine(
-            color = if (isAod) Color(0xFFE2E8F0) else accentColor,
-            start = minTail,
-            end = minTip,
-            strokeWidth = 4.8f,
-            cap = StrokeCap.Round
-        )
-        drawLine(
-            color = if (isAod) Color(0xFF000000) else Color(0xAA000000),
-            start = Offset(center.x + cos(minuteAngle) * (minuteLen * 0.20f), center.y + sin(minuteAngle) * (minuteLen * 0.20f)),
-            end = Offset(center.x + cos(minuteAngle) * (minuteLen * 0.85f), center.y + sin(minuteAngle) * (minuteLen * 0.85f)),
-            strokeWidth = 1.8f,
-            cap = StrokeCap.Round
-        )
-    }
+    when (handStyle) {
+        "lunar" -> {
+            drawLine(color = Color(0xFF15181D), start = hourTail, end = hourTip, strokeWidth = 9.0f, cap = StrokeCap.Round)
+            drawLine(color = if (isAod) Color(0xFFE2E8F0) else Color(0xFFF8FAFC), start = hourTail, end = hourTip, strokeWidth = 5.0f, cap = StrokeCap.Round)
 
-    // 3. Second Hand (Active Mode Only)
-    if (!isAod) {
-        val secTip = Offset(center.x + cos(secondAngle) * secondLen, center.y + sin(secondAngle) * secondLen)
-        val secTail = Offset(center.x - cos(secondAngle) * (secondLen * 0.22f), center.y - sin(secondAngle) * (secondLen * 0.22f))
+            drawLine(color = Color(0xFF15181D), start = minTail, end = minTip, strokeWidth = 8.0f, cap = StrokeCap.Round)
+            drawLine(color = if (isAod) Color(0xFFE2E8F0) else Color(0xFFF8FAFC), start = minTail, end = minTip, strokeWidth = 4.5f, cap = StrokeCap.Round)
 
-        if (isLunarTheme) {
-            // Sleek white needle with subtle crimson accent tip
-            drawLine(
-                color = Color(0xFFFFFFFF),
-                start = secTail,
-                end = secTip,
-                strokeWidth = 2.0f,
-                cap = StrokeCap.Round
-            )
-            val redTipStart = Offset(center.x + cos(secondAngle) * (secondLen * 0.75f), center.y + sin(secondAngle) * (secondLen * 0.75f))
-            drawLine(
-                color = Color(0xFFE53935),
-                start = redTipStart,
-                end = secTip,
-                strokeWidth = 2.5f,
-                cap = StrokeCap.Round
-            )
-        } else {
-            drawLine(
-                color = Color(0xFFD4AF37),
-                start = secTail,
-                end = secTip,
-                strokeWidth = 1.8f,
-                cap = StrokeCap.Round
-            )
+            if (!isAod) {
+                val secTip = Offset(center.x + cos(secondAngle) * secondLen, center.y + sin(secondAngle) * secondLen)
+                val secTail = Offset(center.x - cos(secondAngle) * (secondLen * 0.22f), center.y - sin(secondAngle) * (secondLen * 0.22f))
+                drawLine(color = Color(0xFFFFFFFF), start = secTail, end = secTip, strokeWidth = 2.0f, cap = StrokeCap.Round)
+                val redTipStart = Offset(center.x + cos(secondAngle) * (secondLen * 0.75f), center.y + sin(secondAngle) * (secondLen * 0.75f))
+                drawLine(color = Color(0xFFE53935), start = redTipStart, end = secTip, strokeWidth = 2.5f, cap = StrokeCap.Round)
+
+                drawCircle(color = Color(0xFF15181D), radius = 6.0f, center = center)
+                drawCircle(color = Color(0xFFE53935), radius = 3.5f, center = center)
+            } else {
+                drawCircle(color = Color(0xFFE2E8F0), radius = 4.0f, center = center)
+            }
         }
+        "gold" -> {
+            val handGold = if (isAod) Color(0xFFE5C158) else Color(0xFFD4AF37)
 
-        // Center hub
-        drawCircle(color = Color(0xFF15181D), radius = 6.0f, center = center)
-        drawCircle(color = Color(0xFFD4AF37), radius = 3.5f, center = center)
-    } else {
-        drawCircle(color = Color(0xFFE2E8F0), radius = 4.0f, center = center)
+            drawLine(color = handGold, start = hourTail, end = hourTip, strokeWidth = 6.0f, cap = StrokeCap.Round)
+            drawLine(color = Color(0xFF000000), start = Offset(center.x + cos(hourAngle) * (hourLen * 0.25f), center.y + sin(hourAngle) * (hourLen * 0.25f)), end = Offset(center.x + cos(hourAngle) * (hourLen * 0.78f), center.y + sin(hourAngle) * (hourLen * 0.78f)), strokeWidth = 2.2f, cap = StrokeCap.Round)
+
+            drawLine(color = handGold, start = minTail, end = minTip, strokeWidth = 5.2f, cap = StrokeCap.Round)
+            drawLine(color = Color(0xFF000000), start = Offset(center.x + cos(minuteAngle) * (minuteLen * 0.20f), center.y + sin(minuteAngle) * (minuteLen * 0.20f)), end = Offset(center.x + cos(minuteAngle) * (minuteLen * 0.85f), center.y + sin(minuteAngle) * (minuteLen * 0.85f)), strokeWidth = 2.0f, cap = StrokeCap.Round)
+
+            if (!isAod) {
+                val secTip = Offset(center.x + cos(secondAngle) * secondLen, center.y + sin(secondAngle) * secondLen)
+                val secTail = Offset(center.x - cos(secondAngle) * (secondLen * 0.22f), center.y - sin(secondAngle) * (secondLen * 0.22f))
+                drawLine(color = Color(0xFFFFF0B3), start = secTail, end = secTip, strokeWidth = 1.8f, cap = StrokeCap.Round)
+                drawCircle(color = Color(0xFF15181D), radius = 6.5f, center = center)
+                drawCircle(color = Color(0xFFD4AF37), radius = 4.0f, center = center)
+            } else {
+                drawCircle(color = Color(0xFFE5C158), radius = 4.5f, center = center)
+            }
+        }
+        else -> {
+            val handColor = if (isAod) Color(0xFFE2E8F0) else accentColor
+
+            drawLine(color = handColor, start = hourTail, end = hourTip, strokeWidth = 5.5f, cap = StrokeCap.Round)
+            drawLine(color = if (isAod) Color(0xFF000000) else Color(0xAA000000), start = Offset(center.x + cos(hourAngle) * (hourLen * 0.25f), center.y + sin(hourAngle) * (hourLen * 0.25f)), end = Offset(center.x + cos(hourAngle) * (hourLen * 0.78f), center.y + sin(hourAngle) * (hourLen * 0.78f)), strokeWidth = 2.0f, cap = StrokeCap.Round)
+
+            drawLine(color = handColor, start = minTail, end = minTip, strokeWidth = 4.8f, cap = StrokeCap.Round)
+            drawLine(color = if (isAod) Color(0xFF000000) else Color(0xAA000000), start = Offset(center.x + cos(minuteAngle) * (minuteLen * 0.20f), center.y + sin(minuteAngle) * (minuteLen * 0.20f)), end = Offset(center.x + cos(minuteAngle) * (minuteLen * 0.85f), center.y + sin(minuteAngle) * (minuteLen * 0.85f)), strokeWidth = 1.8f, cap = StrokeCap.Round)
+
+            if (!isAod) {
+                val secTip = Offset(center.x + cos(secondAngle) * secondLen, center.y + sin(secondAngle) * secondLen)
+                val secTail = Offset(center.x - cos(secondAngle) * (secondLen * 0.22f), center.y - sin(secondAngle) * (secondLen * 0.22f))
+                drawLine(color = Color(0xFFD4AF37), start = secTail, end = secTip, strokeWidth = 1.8f, cap = StrokeCap.Round)
+                drawCircle(color = Color(0xFF15181D), radius = 6.0f, center = center)
+                drawCircle(color = Color(0xFFD4AF37), radius = 3.5f, center = center)
+            } else {
+                drawCircle(color = Color(0xFFE2E8F0), radius = 4.0f, center = center)
+            }
+        }
     }
 }
 
-// Astronomical calculation of today's lunar phase index (0 to 28)
+// ---------------------------------------------------------
+// Moon Phase Calculation Helpers
+// ---------------------------------------------------------
+
 fun calculateCurrentMoonPhase(): Int {
     val now = Date().time
-    // Reference New Moon: Jan 11, 2024, 11:57 UTC (in epoch millis: 1704974220000L)
     val knownNewMoon = 1704974220000L
     val synodicPeriodMillis = 29.530588853 * 24.0 * 60.0 * 60.0 * 1000.0
     val diff = (now - knownNewMoon) % synodicPeriodMillis
@@ -1284,40 +1673,8 @@ fun getMoonPhaseName(phaseIndex: Int): Pair<String, String> {
     }
 }
 
-fun applyToWatch(
-    context: Context,
-    theme: String,
-    bg: String,
-    accent: String,
-    ornament: String,
-    dial: String,
-    onSuccess: () -> Unit,
-    onError: (String) -> Unit
-) {
-    try {
-        val request = PutDataMapRequest.create("/nocturne/config").apply {
-            dataMap.putString("watch_theme", theme)
-            dataMap.putString("background", bg)
-            dataMap.putString("accent", accent)
-            dataMap.putString("ornament", ornament)
-            dataMap.putString("dial", dial)
-            dataMap.putLong("timestamp", System.currentTimeMillis())
-        }.asPutDataRequest().setUrgent()
-
-        Wearable.getDataClient(context).putDataItem(request)
-            .addOnSuccessListener { onSuccess() }
-            .addOnFailureListener {
-                // If watch is not currently in direct range, configuration is saved locally and queued
-                onSuccess()
-            }
-    } catch (e: Exception) {
-        onError("تم حفظ الإعداد وسينتقل تلقائياً عند اتصال الساعة")
-    }
-}
-
 fun openGalaxyWearable(context: Context) {
     try {
-        // Try Samsung Galaxy Wearable Manager directly
         val intent = context.packageManager.getLaunchIntentForPackage("com.samsung.android.app.watchmanager")
         if (intent != null) {
             context.startActivity(intent)
@@ -1326,7 +1683,6 @@ fun openGalaxyWearable(context: Context) {
     } catch (_: Exception) {}
 
     try {
-        // Fallback to Wear OS Companion App
         val intent = context.packageManager.getLaunchIntentForPackage("com.google.android.wearable.app")
         if (intent != null) {
             context.startActivity(intent)

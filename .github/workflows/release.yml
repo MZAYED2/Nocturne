@@ -12,7 +12,7 @@ permissions:
 
 jobs:
   build:
-    name: Build Mobile App & Watch Face APKs
+    name: Build Nocturne Mobile, Bridge & WFF Watch Faces
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -30,8 +30,10 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Grant execute permission for gradlew and scripts
+        run: |
+          chmod +x gradlew
+          chmod +x tools/build_all_wff.sh
 
       - name: Determine Version Tag
         id: version
@@ -43,17 +45,34 @@ jobs:
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Build APKs
+      - name: Build Android Modules
         run: |
-          ./gradlew :watchface:assembleDebug :app:assembleDebug --no-daemon
+          ./gradlew :watchface:assembleDebug :wear-bridge:assembleDebug :app:assembleDebug --no-daemon
+
+      - name: Build and Validate WFF Push Packages
+        run: |
+          bash tools/build_all_wff.sh
 
       - name: Prepare Release Artifacts
         run: |
           mkdir -p release-apks
           TAG="${{ steps.version.outputs.tag }}"
-          cp "watchface/build/outputs/apk/debug/watchface-debug.apk" "release-apks/Nocturne-Watch-$TAG.apk"
+          
+          # 1. Phone App APK
           cp "app/build/outputs/apk/debug/app-debug.apk" "release-apks/Nocturne-Phone-$TAG.apk"
-          ls -la release-apks/
+          
+          # 2. Wear OS Bridge APK (for GeminiMan install)
+          cp "wear-bridge/build/outputs/apk/debug/wear-bridge-debug.apk" "release-apks/Nocturne-WearBridge-$TAG.apk"
+          
+          # 3. WFF Watch Face Push Packages
+          cp "distribution/Nocturne-Sage-Push.apk" "release-apks/Nocturne-Sage-Push.apk"
+          cp "distribution/Nocturne-Lunar-Push.apk" "release-apks/Nocturne-Lunar-Push.apk"
+          cp "distribution/Nocturne-Emerald-Push.apk" "release-apks/Nocturne-Emerald-Push.apk"
+          
+          # 4. Catalog Manifest
+          cp "distribution/catalog.json" "release-apks/catalog.json"
+          
+          ls -lh release-apks/
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -66,18 +85,22 @@ jobs:
             ## Nocturne ${{ steps.version.outputs.tag }}
             
             ### 📱 تطبيق الموبايل (Samsung Galaxy S25 Ultra):
-            - `Nocturne-Phone-${{ steps.version.outputs.tag }}.apk`
-            - معاينة حية تفاعلية للثيمين (Sage Nocturne و Lunar Phase).
-            - التبديل السلس بين وضع النشط (Active) ووضع الاستعداد (AOD).
-            - تخصيص ألوان الخلفيات والعقارب والزخارف العثمانية ومنازل القمر.
-            - إرسال وتطبيق الإعدادات بنقرة واحدة إلى الساعة.
+            - **`Nocturne-Phone-${{ steps.version.outputs.tag }}.apk`**
+            - معاينة حية تفاعلية للثيمات الثلاثة (**Sage Nocturne** و **Lunar Phase** و **Emerald Nocturne**).
+            - زر **Apply to Watch** للربط الحقيقي عبر Wear OS Data Layer وتثبيت الواجهات عن بُعد عبر **Watch Face Push API**.
+            - دعم تنزيل وتحديث أي واجهات جديدة تُضاف لمستودع GitHub مباشرة وبدون الحاجة لإعادة تثبيت التطبيق.
             
-            ### ⌚ واجهة الساعة (Samsung Galaxy Watch 5 - Wear OS 6):
-            - `Nocturne-Watch-${{ steps.version.outputs.tag }}.apk`
-            - **الثيم الأول (Sage Nocturne):** التصميم العثماني الأخضر الأصلي مع الزخرفة العثمانية، القمر الصغير، الذكر، والتعقيدات الثلاث.
-            - **الثيم الثاني (Lunar Phase):** قمر سينمائي كبير يملأ 92% من الشاشة بإضاءة ثلاثية الأبعاد دقيقة فلكياً عبر 29 منزلة، مع عقارب بتباين مزدوج، وشاشة AOD سوداء موفرة للطاقة.
-            - دعم التخصيص الكامل من الساعة مباشرة عبر **Customize** أو من تطبيق **Galaxy Wearable**.
+            ### ⌚ تطبيق الربط للساعة (Samsung Galaxy Watch 5 - Wear OS 6):
+            - **`Nocturne-WearBridge-${{ steps.version.outputs.tag }}.apk`**
+            - ثبّت هذا الملف **مرة واحدة فقط** على الساعة عبر تطبيق **GeminiMan Wear OS Manager**.
+            - بعد تثبيته يمكنك إغلاق الـ **Wireless Debugging** نهائياً على الساعة!
+            
+            ### 🎨 حزم واجهات الساعة WFF المعتمدة رسمياً (Watch Face Format):
+            - **`Nocturne-Sage-Push.apk`** — الثيم العثماني الأخضر الأصلي مع الزخارف والأذكار ومنازل القمر والتعقيدات.
+            - **`Nocturne-Lunar-Push.apk`** — ثيم القمر السينمائي الكبير (92% من الشاشة، 29 منزلة فلكية، وضع AOD أسود نقي).
+            - **`Nocturne-Emerald-Push.apk`** — الإصدار الزمردي الإمبراطوري بتعديل بصري واضح وعقارب ذهبية لاختبار وتأكيد التحديث اللاسلكي.
+            - **`catalog.json`** — فهرس الواجهات مع رموز التحقق الرسمية (Validation Tokens).
           files: |
-            release-apks/*.apk
+            release-apks/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
