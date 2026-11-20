@@ -1,0 +1,33 @@
+<resources>
+    <string name="watch_face_name">Nocturne</string>
+    <string name="theme_selection_label">التصميم</string>
+    <string name="theme_sage_nocturne">Sage Nocturne (العثماني الأخضر)</string>
+    <string name="theme_lunar_phase">Lunar Phase (القمر)</string>
+    <string name="greeting">أهلاً بك!</string>
+    <string name="theme_label">ألوان الميناء</string>
+    <string name="hands_label">لون العقارب</string>
+    <string name="background_label">لون الخلفية</string>
+    <string name="match_theme">مطابقة لون الميناء</string>
+    <string name="ornament_label">الزخرفة العثمانية</string>
+    <string name="dial_label">علامات الساعات</string>
+    <string name="sage">أخضر سيج</string>
+    <string name="blue">أزرق نيلي</string>
+    <string name="gold">ذهبي عتيق</string>
+    <string name="emerald">زمردي</string>
+    <string name="silver">فضي</string>
+    <string name="minimal">بسيط</string>
+    <string name="balanced">متوازن</string>
+    <string name="ornate">مزخرف</string>
+    <string name="none">بدون زخرفة</string>
+    <string name="full">جميع الأرقام</string>
+    <string name="cardinal">الأرباع فقط</string>
+    <string name="markers">علامات فقط</string>
+    <string name="left_slot">الخانة اليسرى (البطارية)</string>
+    <string name="right_slot">الخانة اليمنى (التاريخ)</string>
+    <string name="steps_slot">خانة الخطوات</string>
+    <string name="background_black">أسود خالص</string>
+    <string name="background_navy">أزرق ليلي</string>
+    <string name="background_teal">تركواز داكن</string>
+    <string name="background_warm">أسود دافئ</string>
+    <string name="background_graphite">جرافيت</string>
+</resources>

@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Nocturne</string>
+    <string name="companion_subtitle">Watch Face Companion</string>
+    <string name="apply_to_watch">Apply to Watch</string>
+    <string name="open_galaxy_wearable">Open in Galaxy Wearable</string>
+    <string name="theme_sage_nocturne">Sage Nocturne</string>
+    <string name="theme_lunar_phase">Lunar Phase</string>
+    <string name="active_mode">Active</string>
+    <string name="aod_mode">AOD</string>
+</resources>

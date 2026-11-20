@@ -1,0 +1,83 @@
+name: Build and Release Nocturne
+
+on:
+  push:
+    branches: [ main ]
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build Mobile App & Watch Face APKs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+          cache: 'gradle'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Determine Version Tag
+        id: version
+        run: |
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            TAG="${GITHUB_REF#refs/tags/}"
+          else
+            TAG="v1.0.${{ github.run_number }}"
+          fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
+
+      - name: Build APKs
+        run: |
+          ./gradlew :watchface:assembleDebug :app:assembleDebug --no-daemon
+
+      - name: Prepare Release Artifacts
+        run: |
+          mkdir -p release-apks
+          TAG="${{ steps.version.outputs.tag }}"
+          cp "watchface/build/outputs/apk/debug/watchface-debug.apk" "release-apks/Nocturne-Watch-$TAG.apk"
+          cp "app/build/outputs/apk/debug/app-debug.apk" "release-apks/Nocturne-Phone-$TAG.apk"
+          ls -la release-apks/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.version.outputs.tag }}
+          name: Nocturne ${{ steps.version.outputs.tag }}
+          draft: false
+          prerelease: false
+          body: |
+            ## Nocturne ${{ steps.version.outputs.tag }}
+            
+            ### 📱 تطبيق الموبايل (Samsung Galaxy S25 Ultra):
+            - `Nocturne-Phone-${{ steps.version.outputs.tag }}.apk`
+            - معاينة حية تفاعلية للثيمين (Sage Nocturne و Lunar Phase).
+            - التبديل السلس بين وضع النشط (Active) ووضع الاستعداد (AOD).
+            - تخصيص ألوان الخلفيات والعقارب والزخارف العثمانية ومنازل القمر.
+            - إرسال وتطبيق الإعدادات بنقرة واحدة إلى الساعة.
+            
+            ### ⌚ واجهة الساعة (Samsung Galaxy Watch 5 - Wear OS 6):
+            - `Nocturne-Watch-${{ steps.version.outputs.tag }}.apk`
+            - **الثيم الأول (Sage Nocturne):** التصميم العثماني الأخضر الأصلي مع الزخرفة العثمانية، القمر الصغير، الذكر، والتعقيدات الثلاث.
+            - **الثيم الثاني (Lunar Phase):** قمر سينمائي كبير يملأ 92% من الشاشة بإضاءة ثلاثية الأبعاد دقيقة فلكياً عبر 29 منزلة، مع عقارب بتباين مزدوج، وشاشة AOD سوداء موفرة للطاقة.
+            - دعم التخصيص الكامل من الساعة مباشرة عبر **Customize** أو من تطبيق **Galaxy Wearable**.
+          files: |
+            release-apks/*.apk
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

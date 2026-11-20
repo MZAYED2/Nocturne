@@ -1,0 +1,10 @@
+<resources>
+    <string name="app_name">Nocturne</string>
+    <string name="companion_subtitle">مرافق واجهة الساعة</string>
+    <string name="apply_to_watch">تطبيق على الساعة</string>
+    <string name="open_galaxy_wearable">فتح في Galaxy Wearable</string>
+    <string name="theme_sage_nocturne">Sage Nocturne (العثماني الأخضر)</string>
+    <string name="theme_lunar_phase">Lunar Phase (القمر السينمائي)</string>
+    <string name="active_mode">الوضع النشط (Active)</string>
+    <string name="aod_mode">وضع الاستعداد (AOD)</string>
+</resources>
