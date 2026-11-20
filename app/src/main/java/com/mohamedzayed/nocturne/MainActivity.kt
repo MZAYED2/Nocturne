@@ -62,6 +62,7 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Calendar
@@ -91,11 +92,13 @@ data class WatchFaceItem(
 
 sealed class PushState {
     object Idle : PushState()
-    data class Downloading(val progress: Float) : PushState()
-    data class Transferring(val progress: Float) : PushState()
-    object Installing : PushState()
-    data class Success(val message: String) : PushState()
-    data class Error(val message: String) : PushState()
+    data class Downloading(val progress: Float, val detail: String) : PushState()
+    data class Validating(val detail: String) : PushState()
+    data class Connecting(val detail: String) : PushState()
+    data class Transferring(val progress: Float, val detail: String) : PushState()
+    data class Installing(val detail: String) : PushState()
+    data class Success(val message: String, val slotId: String?) : PushState()
+    data class Error(val stage: String, val message: String, val hint: String) : PushState()
 }
 
 data class ColorOption(val id: String, val nameAr: String, val color: Color)
@@ -161,7 +164,7 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                 nameAr = "Sage Nocturne (العثماني الأخضر)",
                 description = "Ottoman Sage Green heritage dial with engraved calligraphy, small moon phase, and active/AOD modes.",
                 descriptionAr = "التصميم العثماني الأخضر الأصلي مع الزخرفة العثمانية، القمر الصغير، الذكر، والتعقيدات الثلاث.",
-                packageName = "com.mohamedzayed.nocturne.watchface",
+                packageName = "com.mohamedzayed.nocturne.wear.watchfacepush.nocturne",
                 validationToken = "5ugOKYpMG7g3n6v1DhIyxZyr+he7vLkgZKo2mkUFu4g=:MS4wLjA=",
                 apkFilename = "Nocturne-Sage-Push.apk",
                 downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Sage-Push.apk",
@@ -175,7 +178,7 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                 nameAr = "Lunar Phase (القمر السينمائي)",
                 description = "Large poetic astronomical moon disc filling the watch display, with luminous dual-contrast hands and minimal AOD dial.",
                 descriptionAr = "قمر سينمائي كبير يملأ 92% من الشاشة بإضاءة ثلاثية الأبعاد دقيقة فلكياً عبر 29 منزلة، مع عقارب بتباين مزدوج، وشاشة AOD سوداء موفرة للطاقة.",
-                packageName = "com.mohamedzayed.nocturne.watchface",
+                packageName = "com.mohamedzayed.nocturne.wear.watchfacepush.nocturne",
                 validationToken = "IhuCTM8nS2k+fb77pektRVK8L+CRUYhM8hd23LTJs94=:MS4wLjA=",
                 apkFilename = "Nocturne-Lunar-Push.apk",
                 downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Lunar-Push.apk",
@@ -189,7 +192,7 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                 nameAr = "Emerald Nocturne (الزمردي الإمبراطوري)",
                 description = "Imperial Emerald and Gold edition with ornate Ottoman pattern, golden hands, and emerald accents.",
                 descriptionAr = "الإصدار الزمردي والذهبي الإمبراطوري بتعديل بصري واضح وعقارب ذهبية لاختبار وتأكيد التحديث اللاسلكي.",
-                packageName = "com.mohamedzayed.nocturne.watchface",
+                packageName = "com.mohamedzayed.nocturne.wear.watchfacepush.nocturne",
                 validationToken = "W07v05D8pJ0R3om235ZHsB8E8HqvE0yIlR+KqKBc540=:MS4wLjA=",
                 apkFilename = "Nocturne-Emerald-Push.apk",
                 downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Emerald-Push.apk",
@@ -683,6 +686,7 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
 
             Spacer(modifier = Modifier.height(24.dp))
 
+            // Progress and Error State Rendering
             when (val st = pushState) {
                 is PushState.Downloading -> {
                     Surface(
@@ -695,10 +699,40 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFF81D4FA), strokeWidth = 2.dp)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("جاري تنزيل حزمة الواجهة من GitHub... (${(st.progress * 100).toInt()}%)", color = Color(0xFFE2E8F0), fontSize = 12.sp)
+                                Text(st.detail, color = Color(0xFFE2E8F0), fontSize = 12.sp)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             LinearProgressIndicator(progress = { st.progress }, modifier = Modifier.fillMaxWidth(), color = Color(0xFF81D4FA))
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+                is PushState.Validating -> {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF1A2633),
+                        border = BorderStroke(1.dp, Color(0xFF0288D1)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFF29B6F6), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(st.detail, color = Color(0xFFE1F5FE), fontSize = 12.sp)
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(14.dp))
+                }
+                is PushState.Connecting -> {
+                    Surface(
+                        shape = RoundedCornerShape(12.dp),
+                        color = Color(0xFF1C2D24),
+                        border = BorderStroke(1.dp, Color(0xFF2E7D32)),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFF66BB6A), strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(st.detail, color = Color(0xFFE8F5E9), fontSize = 12.sp)
                         }
                     }
                     Spacer(modifier = Modifier.height(14.dp))
@@ -714,7 +748,7 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFF4CAF50), strokeWidth = 2.dp)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("جاري نقل الواجهة لاسلكياً عبر بلوتوث الساعة... (${(st.progress * 100).toInt()}%)", color = Color(0xFFE2E8F0), fontSize = 12.sp)
+                                Text(st.detail, color = Color(0xFFE2E8F0), fontSize = 12.sp)
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             LinearProgressIndicator(progress = { st.progress }, modifier = Modifier.fillMaxWidth(), color = Color(0xFF4CAF50))
@@ -732,7 +766,7 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color(0xFFFFC107), strokeWidth = 2.dp)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("جاري تثبيت وتفعيل الواجهة على الساعة عبر نظام Wear OS...", color = Color(0xFFFFF8E1), fontSize = 12.sp)
+                            Text(st.detail, color = Color(0xFFFFF8E1), fontSize = 12.sp)
                         }
                     }
                     Spacer(modifier = Modifier.height(14.dp))
@@ -745,9 +779,14 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text(st.message, color = Color(0xFFE8F5E9), fontSize = 12.sp)
+                            Column {
+                                Text(st.message, color = Color(0xFFE8F5E9), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                if (st.slotId != null) {
+                                    Text("تم التحقق وتفعيل الخانة: ${st.slotId}", color = Color(0xFFA5D6A7), fontSize = 10.sp)
+                                }
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(14.dp))
@@ -759,10 +798,16 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                         border = BorderStroke(1.dp, Color(0xFFD32F2F)),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Row(modifier = Modifier.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFEF5350), modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(st.message, color = Color(0xFFFFEBEE), fontSize = 12.sp)
+                        Column(modifier = Modifier.padding(12.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Default.Error, contentDescription = null, tint = Color(0xFFEF5350), modifier = Modifier.size(20.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("خطأ في مرحلة [${st.stage}]: ${st.message}", color = Color(0xFFFFEBEE), fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                            if (st.hint.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("نصيحة الحل: ${st.hint}", color = Color(0xFFFFCDD2), fontSize = 11.sp)
+                            }
                         }
                     }
                     Spacer(modifier = Modifier.height(14.dp))
@@ -770,7 +815,11 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                 else -> {}
             }
 
-            val isBusy = pushState is PushState.Downloading || pushState is PushState.Transferring || pushState is PushState.Installing
+            val isBusy = pushState is PushState.Downloading ||
+                    pushState is PushState.Validating ||
+                    pushState is PushState.Connecting ||
+                    pushState is PushState.Transferring ||
+                    pushState is PushState.Installing
 
             Button(
                 onClick = {
@@ -779,16 +828,16 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                             context = context,
                             item = selectedItem,
                             onStateChange = { pushState = it },
-                            onSuccess = { msg ->
-                                pushState = PushState.Success(msg)
+                            onSuccess = { msg, slotId ->
+                                pushState = PushState.Success(msg, slotId)
                                 coroutineScope.launch {
                                     snackbarHostState.showSnackbar(msg)
                                 }
                             },
-                            onError = { err ->
-                                pushState = PushState.Error(err)
+                            onError = { stage, err, hint ->
+                                pushState = PushState.Error(stage, err, hint)
                                 coroutineScope.launch {
-                                    snackbarHostState.showSnackbar(err)
+                                    snackbarHostState.showSnackbar("فشل في مرحلة [$stage]: $err")
                                 }
                             }
                         )
@@ -869,9 +918,9 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                 Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     Text(
                         text = "1. تثبيت برنامج الربط لأول مرة فقط (GeminiMan Wear OS Manager):\n" +
-                                "• اسم الملف: Nocturne-WearBridge-v1.0.3.apk\n" +
+                                "• اسم الملف: Nocturne-WearBridge-v1.0.4.apk\n" +
                                 "• ثبّت هذا الملف مرة واحدة فقط على الساعة بواسطة تطبيق GeminiMan على هاتفك أو عبر أي مدير Wear OS.\n" +
-                                "• بعد التثبيت، افتح تطبيق Nocturne Bridge على الساعة ووافق على إذن التفعيل إذا طُلب.\n\n" +
+                                "• بعد التثبيت، افتح تطبيق Nocturne Bridge على الساعة ووافق على إذن التفعيل التلقائي إذا طُلب.\n\n" +
                                 "2. التثبيت والتحديث التلقائي بدون تصحيح أخطاء (Wireless Debugging OFF):\n" +
                                 "• يمكنك الآن إغلاق وتأمين تصحيح الأخطاء اللاسلكي نهائياً على الساعة.\n" +
                                 "• من تطبيق Nocturne على الموبايل، اختر أي واجهة (Sage Nocturne أو Lunar Phase أو Emerald Nocturne) واضغط 'Apply to Watch'.\n" +
@@ -896,99 +945,193 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
 }
 
 // ---------------------------------------------------------
-// Direct Push to Watch Implementation
+// Direct Push to Watch Implementation (Multi-Stage Robust Pipeline)
 // ---------------------------------------------------------
 
 suspend fun applyWatchFaceDirectly(
     context: Context,
     item: WatchFaceItem,
     onStateChange: (PushState) -> Unit,
-    onSuccess: (String) -> Unit,
-    onError: (String) -> Unit
+    onSuccess: (String, String?) -> Unit,
+    onError: (String, String, String) -> Unit
 ) = withContext(Dispatchers.IO) {
     try {
-        val nodeClient = Wearable.getNodeClient(context)
-        val nodes = nodeClient.connectedNodes.await()
-        if (nodes.isEmpty()) {
-            onError("لم يتم العثور على ساعة متصلة بالبلوتوث. تأكد من اقتران Galaxy Watch 5.")
-            return@withContext
-        }
-        val targetNode = nodes[0]
-
+        // ---------------------------------------------------------
+        // STAGE 1 & 2: Local Cache & GitHub Download with Validation
+        // ---------------------------------------------------------
+        onStateChange(PushState.Validating("فحص توفر حزمة ${item.name} محلياً..."))
         val apkFile = File(context.cacheDir, item.apkFilename)
-        if (!apkFile.exists() || apkFile.length() < 1000L) {
-            var copiedFromAssets = false
+
+        var isFileReady = isApkFileValid(apkFile)
+
+        if (!isFileReady) {
+            // Check bundled assets
             try {
                 val assetList = context.assets.list("watchfaces") ?: emptyArray()
                 if (assetList.contains(item.apkFilename)) {
+                    onStateChange(PushState.Validating("نسخ الحزمة من أصول التطبيق المدمجة..."))
                     context.assets.open("watchfaces/${item.apkFilename}").use { input ->
                         FileOutputStream(apkFile).use { output ->
                             input.copyTo(output)
                         }
                     }
-                    copiedFromAssets = true
+                    isFileReady = isApkFileValid(apkFile)
                 }
             } catch (_: Exception) {}
+        }
 
-            if (!copiedFromAssets) {
-                onStateChange(PushState.Downloading(0.05f))
-                downloadApkFromUrl(item.downloadUrl, apkFile) { progress ->
-                    onStateChange(PushState.Downloading(progress))
+        if (!isFileReady) {
+            // Download from GitHub Release with multi-redirect loop
+            onStateChange(PushState.Downloading(0.02f, "1/5: جاري تنزيل ${item.name} من GitHub..."))
+            val dlResult = downloadApkWithValidation(
+                urlString = item.downloadUrl,
+                destinationFile = apkFile,
+                expectedMinBytes = 10_000_000L,
+                onProgress = { fraction, current, total ->
+                    val mbCurrent = current / (1024 * 1024)
+                    val mbTotal = if (total > 0) total / (1024 * 1024) else 0L
+                    val detail = if (mbTotal > 0) {
+                        "1/5: جاري تنزيل الواجهة من GitHub ($mbCurrent / $mbTotal MB - ${(fraction * 100).toInt()}%)"
+                    } else {
+                        "1/5: جاري تنزيل الواجهة من GitHub ($mbCurrent MB)"
+                    }
+                    onStateChange(PushState.Downloading(fraction, detail))
                 }
+            )
+
+            if (dlResult.isFailure) {
+                val ex = dlResult.exceptionOrNull()
+                onError(
+                    "DOWNLOAD",
+                    ex?.localizedMessage ?: "فشل تنزيل ملف الواجهة من GitHub",
+                    "تأكد من اتصال الهاتف بالإنترنت، أو تحقق من وجود ملفات الإصدار على GitHub"
+                )
+                return@withContext
             }
         }
 
-        if (!apkFile.exists() || apkFile.length() < 1000L) {
-            onError("تعذر العثور على ملف الواجهة ${item.apkFilename}")
+        // Final verification of APK integrity
+        onStateChange(PushState.Validating("2/5: التحقق من سلامة الحزمة والترويسة..."))
+        if (!isApkFileValid(apkFile)) {
+            apkFile.delete()
+            onError(
+                "VALIDATE",
+                "ملف الواجهة تالف أو غير صالح (الحجم: ${apkFile.length()} بايت)",
+                "تم حذف الملف التالف، يرجى إعادة المحاولة لتحميله مجدداً"
+            )
             return@withContext
         }
 
-        onStateChange(PushState.Transferring(0.01f))
+        // ---------------------------------------------------------
+        // STAGE 3: Connected Watch Discovery & Bridge Handshake
+        // ---------------------------------------------------------
+        onStateChange(PushState.Connecting("3/5: البحث عن ساعة Galaxy Watch 5..."))
+        val nodeClient = Wearable.getNodeClient(context)
+        val nodes = nodeClient.connectedNodes.await()
+        if (nodes.isEmpty()) {
+            onError(
+                "CONNECT",
+                "لم يتم العثور على ساعة متصلة بالبلوتوث",
+                "تأكد من اقتران Galaxy Watch 5 عبر تطبيق Galaxy Wearable وتشغيل البلوتوث"
+            )
+            return@withContext
+        }
+        val targetNode = nodes[0]
+
+        // Handshake: Ping Bridge
+        val messageClient = Wearable.getMessageClient(context)
+        var bridgeResponding = false
+        val pingListener = object : MessageClient.OnMessageReceivedListener {
+            override fun onMessageReceived(event: MessageEvent) {
+                if (event.path == "/nocturne/pong") {
+                    bridgeResponding = true
+                }
+            }
+        }
+        messageClient.addListener(pingListener)
+        try {
+            messageClient.sendMessage(targetNode.id, "/nocturne/ping", ByteArray(0)).await()
+            // Wait up to 3.5s for bridge pong
+            var waited = 0
+            while (!bridgeResponding && waited < 35) {
+                delay(100)
+                waited++
+            }
+        } catch (_: Exception) {}
+        messageClient.removeListener(pingListener)
+
+        if (!bridgeResponding) {
+            onError(
+                "CONNECT",
+                "برنامج الربط (Nocturne-WearBridge) غير نشط على الساعة",
+                "تأكد من تثبيت Nocturne-WearBridge-v1.0.4.apk على الساعة عبر GeminiMan وافتحه مرة واحدة"
+            )
+            return@withContext
+        }
+
+        // Send metadata prepare message
+        onStateChange(PushState.Connecting("3/5: مصافحة تجهيز النقل مع الساعة..."))
+        val preparePayload = JSONObject().apply {
+            put("packageName", item.packageName)
+            put("token", item.validationToken)
+            put("apkFilename", item.apkFilename)
+            put("fileSize", apkFile.length())
+            put("setActive", true)
+        }
+
+        var readyForPush = false
+        val readyListener = object : MessageClient.OnMessageReceivedListener {
+            override fun onMessageReceived(event: MessageEvent) {
+                if (event.path == "/nocturne/ready_for_push") {
+                    readyForPush = true
+                }
+            }
+        }
+        messageClient.addListener(readyListener)
+        try {
+            messageClient.sendMessage(targetNode.id, "/nocturne/prepare_push", preparePayload.toString().toByteArray()).await()
+            var waited = 0
+            while (!readyForPush && waited < 40) {
+                delay(100)
+                waited++
+            }
+        } catch (_: Exception) {}
+        messageClient.removeListener(readyListener)
+
+        // ---------------------------------------------------------
+        // STAGE 4: Channel File Transfer via ChannelClient
+        // ---------------------------------------------------------
+        val mbSize = apkFile.length() / (1024 * 1024)
+        onStateChange(PushState.Transferring(0.1f, "4/5: جاري نقل حزمة الواجهة ($mbSize MB) للساعة عبر البلوتوث..."))
+
         val channelClient = Wearable.getChannelClient(context)
         val channel = channelClient.openChannel(targetNode.id, "/nocturne/push_channel").await()
 
-        val outputStream = channelClient.getOutputStream(channel).await()
-
-        val headerJson = JSONObject().apply {
-            put("packageName", item.packageName)
-            put("token", item.validationToken)
-            put("setActive", true)
+        try {
+            val fileUri = Uri.fromFile(apkFile)
+            Log.i("NocturnePhone", "Sending file via channelClient.sendFile: $fileUri")
+            channelClient.sendFile(channel, fileUri).await()
+            Log.i("NocturnePhone", "sendFile completed successfully!")
+            onStateChange(PushState.Transferring(1.0f, "4/5: اكتمل نقل الملف، جاري استلام وتثبيت الواجهة..."))
+        } catch (e: Exception) {
+            Log.e("NocturnePhone", "sendFile failed", e)
+            try { channelClient.close(channel).await() } catch (_: Exception) {}
+            onError(
+                "TRANSFER",
+                "انقطعت قناة الاتصال أثناء نقل الملف: ${e.localizedMessage}",
+                "تأكد من بقاء شاشة الساعة مضاءة وقربها من الهاتف ثم أعد المحاولة"
+            )
+            return@withContext
         }
-        val headerBytes = headerJson.toString().toByteArray(Charsets.UTF_8)
-        val headerLen = headerBytes.size
 
-        val lengthBytes = byteArrayOf(
-            ((headerLen shr 24) and 0xFF).toByte(),
-            ((headerLen shr 16) and 0xFF).toByte(),
-            ((headerLen shr 8) and 0xFF).toByte(),
-            (headerLen and 0xFF).toByte()
-        )
+        // ---------------------------------------------------------
+        // STAGE 5: Await Installation Result from Watch Bridge
+        // ---------------------------------------------------------
+        onStateChange(PushState.Installing("5/5: جاري تثبيت وتفعيل الواجهة على الساعة عبر نظام Wear OS..."))
 
-        outputStream.write(lengthBytes)
-        outputStream.write(headerBytes)
-
-        val totalLength = apkFile.length()
-        var bytesWritten = 0L
-        val buffer = ByteArray(16384)
-
-        FileInputStream(apkFile).use { input ->
-            var read: Int
-            while (input.read(buffer).also { read = it } != -1) {
-                outputStream.write(buffer, 0, read)
-                bytesWritten += read
-                val fraction = (bytesWritten.toFloat() / totalLength).coerceIn(0f, 1f)
-                onStateChange(PushState.Transferring(fraction))
-            }
-        }
-        outputStream.flush()
-        outputStream.close()
-
-        onStateChange(PushState.Installing)
-
-        val messageClient = Wearable.getMessageClient(context)
-        val result = withTimeoutOrNull(60000L) {
+        val resultJson = withTimeoutOrNull(90000L) {
             suspendCancellableCoroutine<JSONObject> { cont ->
-                val listener = object : MessageClient.OnMessageReceivedListener {
+                val resultListener = object : MessageClient.OnMessageReceivedListener {
                     override fun onMessageReceived(event: MessageEvent) {
                         if (event.path == "/nocturne/push_result") {
                             messageClient.removeListener(this)
@@ -1001,25 +1144,35 @@ suspend fun applyWatchFaceDirectly(
                         }
                     }
                 }
-                messageClient.addListener(listener)
+                messageClient.addListener(resultListener)
                 cont.invokeOnCancellation {
-                    messageClient.removeListener(listener)
+                    messageClient.removeListener(resultListener)
                 }
             }
         }
 
-        if (result != null) {
-            val success = result.optBoolean("success", false)
+        if (resultJson != null) {
+            val success = resultJson.optBoolean("success", false)
+            val slotId = resultJson.optString("slotId", null)
+            val isActive = resultJson.optBoolean("isActive", false)
+
             if (success) {
-                onSuccess("✓ تم تثبيت وتفعيل ${item.nameAr} على الساعة بنجاح!")
+                onSuccess("✓ تم تثبيت وتفعيل ${item.nameAr} على الساعة بنجاح!", slotId)
             } else {
-                val err = result.optString("error", "فشل التثبيت على الساعة")
-                onError("فشل التثبيت: $err")
+                val stage = resultJson.optString("stage", "INSTALL")
+                val errorMsg = resultJson.optString("error", "فشل التثبيت على الساعة")
+                onError(stage, errorMsg, "تحقق من منح إذن التفعيل التلقائي في تطبيق Nocturne Bridge على الساعة")
             }
         } else {
-            onSuccess("✓ تم إرسال حزمة ${item.nameAr} إلى الساعة وتفعيلها بنجاح!")
+            // Timeout awaiting confirmation
+            onError(
+                "TIMEOUT",
+                "استغرق التثبيت وقتاً أطول من المتوقع على الساعة",
+                "تحقق من شاشة الساعة، فقد تكون الواجهة قد تم تثبيتها وتنتظر الاختيار"
+            )
         }
 
+        // Backup config sync for backward compatibility
         try {
             val req = PutDataMapRequest.create("/nocturne/config").apply {
                 dataMap.putString("watch_theme", item.id)
@@ -1029,39 +1182,131 @@ suspend fun applyWatchFaceDirectly(
         } catch (_: Exception) {}
 
     } catch (e: Exception) {
-        Log.e("NocturnePhone", "Push failed", e)
-        onError("حدث خطأ أثناء نقل الواجهة: ${e.localizedMessage}")
+        Log.e("NocturnePhone", "Push failed unexpected error", e)
+        val msg = e.localizedMessage ?: e.message ?: "خطأ غير معروف"
+        if (msg.contains("API_UNAVAILABLE", ignoreCase = true) || msg.contains("17: API", ignoreCase = true)) {
+            onError(
+                "CONNECT",
+                "خدمة Wear OS غير متاحة أو لا توجد ساعة مقترنة بهذا الهاتف حالياً",
+                "تأكد من إقران الساعة وتوصيلها بالهاتف عبر تطبيق Galaxy Wearable ثم أعد المحاولة"
+            )
+        } else {
+            onError("SYSTEM", "حدث خطأ غير متوقع: $msg", "يرجى إعادة المحاولة")
+        }
     }
 }
 
-suspend fun downloadApkFromUrl(urlString: String, destinationFile: File, onProgress: (Float) -> Unit) = withContext(Dispatchers.IO) {
-    var connection: HttpURLConnection? = null
-    try {
-        val url = URL(urlString)
-        connection = url.openConnection() as HttpURLConnection
-        connection.connectTimeout = 15000
-        connection.readTimeout = 30000
-        connection.instanceFollowRedirects = true
-        connection.connect()
+// ---------------------------------------------------------
+// Helpers: Robust Download & APK Validation
+// ---------------------------------------------------------
 
-        val contentLength = connection.contentLengthLong
-        connection.inputStream.use { input ->
-            FileOutputStream(destinationFile).use { output ->
-                val buffer = ByteArray(8192)
-                var bytesRead: Int
-                var totalRead = 0L
-                while (input.read(buffer).also { bytesRead = it } != -1) {
-                    output.write(buffer, 0, bytesRead)
-                    totalRead += bytesRead
-                    if (contentLength > 0) {
-                        onProgress((totalRead.toFloat() / contentLength).coerceIn(0f, 1f))
+fun isApkFileValid(file: File): Boolean {
+    if (!file.exists() || file.length() < 10_000_000L) return false
+    return try {
+        FileInputStream(file).use { fis ->
+            val magic = ByteArray(4)
+            fis.read(magic) == 4 &&
+                    magic[0] == 0x50.toByte() &&
+                    magic[1] == 0x4B.toByte() &&
+                    magic[2] == 0x03.toByte() &&
+                    magic[3] == 0x04.toByte()
+        }
+    } catch (_: Exception) {
+        false
+    }
+}
+
+suspend fun downloadApkWithValidation(
+    urlString: String,
+    destinationFile: File,
+    expectedMinBytes: Long = 10_000_000L,
+    onProgress: (Float, Long, Long) -> Unit
+): Result<File> = withContext(Dispatchers.IO) {
+    var tempFile: File? = null
+    try {
+        var currentUrl = urlString
+        var redirectCount = 0
+        var connection: HttpURLConnection? = null
+        var totalBytes = -1L
+
+        // Follow redirects explicitly across domains (e.g. GitHub to release-assets.githubusercontent.com)
+        while (redirectCount < 8) {
+            val url = URL(currentUrl)
+            connection = url.openConnection() as HttpURLConnection
+            connection.connectTimeout = 20000
+            connection.readTimeout = 45000
+            connection.instanceFollowRedirects = false
+            connection.setRequestProperty("User-Agent", "Nocturne-Companion/1.0")
+            connection.connect()
+
+            val code = connection.responseCode
+            if (code in 300..399) {
+                val loc = connection.getHeaderField("Location")
+                    ?: return@withContext Result.failure(IOException("HTTP $code redirect missing Location header"))
+                connection.disconnect()
+                currentUrl = if (loc.startsWith("http://") || loc.startsWith("https://")) {
+                    loc
+                } else {
+                    URL(url, loc).toString()
+                }
+                redirectCount++
+                continue
+            }
+
+            if (code != 200) {
+                connection.disconnect()
+                return@withContext Result.failure(IOException("HTTP $code from $currentUrl"))
+            }
+
+            totalBytes = connection.contentLengthLong
+            break
+        }
+
+        val conn = connection ?: return@withContext Result.failure(IOException("No connection established"))
+        tempFile = File(destinationFile.parentFile, "${destinationFile.name}.part")
+        if (tempFile.exists()) tempFile.delete()
+
+        var downloadedBytes = 0L
+        conn.inputStream.use { input ->
+            FileOutputStream(tempFile).use { output ->
+                val buffer = ByteArray(32768)
+                var read: Int
+                while (input.read(buffer).also { read = it } != -1) {
+                    output.write(buffer, 0, read)
+                    downloadedBytes += read
+                    if (totalBytes > 0) {
+                        val fraction = (downloadedBytes.toFloat() / totalBytes).coerceIn(0f, 1f)
+                        onProgress(fraction, downloadedBytes, totalBytes)
+                    } else {
+                        onProgress(0.5f, downloadedBytes, totalBytes)
                     }
                 }
                 output.flush()
             }
         }
-    } finally {
-        connection?.disconnect()
+        conn.disconnect()
+
+        if (tempFile.length() < expectedMinBytes) {
+            val size = tempFile.length()
+            tempFile.delete()
+            return@withContext Result.failure(IOException("الملف المحمل غير مكتمل: حجمه $size بايت فقط"))
+        }
+
+        if (!isApkFileValid(tempFile)) {
+            tempFile.delete()
+            return@withContext Result.failure(IOException("الملف المحمل ليس حزمة APK صالحة"))
+        }
+
+        if (destinationFile.exists()) destinationFile.delete()
+        if (!tempFile.renameTo(destinationFile)) {
+            tempFile.copyTo(destinationFile, overwrite = true)
+            tempFile.delete()
+        }
+
+        Result.success(destinationFile)
+    } catch (e: Exception) {
+        tempFile?.delete()
+        Result.failure(e)
     }
 }
 
@@ -1085,18 +1330,33 @@ suspend fun fetchRemoteCatalog(): List<WatchFaceItem> = withContext(Dispatchers.
     )
     for (urlString in urls) {
         try {
-            val url = URL(urlString)
-            val connection = url.openConnection() as HttpURLConnection
-            connection.connectTimeout = 8000
-            connection.readTimeout = 10000
-            connection.connect()
-            if (connection.responseCode == 200) {
-                val jsonStr = connection.inputStream.bufferedReader().use { it.readText() }
-                connection.disconnect()
-                val parsed = parseCatalogJson(jsonStr)
-                if (parsed.isNotEmpty()) return@withContext parsed
+            var currentUrl = urlString
+            var redirectCount = 0
+            var connection: HttpURLConnection? = null
+            while (redirectCount < 5) {
+                val url = URL(currentUrl)
+                connection = url.openConnection() as HttpURLConnection
+                connection.connectTimeout = 8000
+                connection.readTimeout = 10000
+                connection.instanceFollowRedirects = false
+                connection.connect()
+                val code = connection.responseCode
+                if (code in 300..399) {
+                    val loc = connection.getHeaderField("Location") ?: break
+                    connection.disconnect()
+                    currentUrl = if (loc.startsWith("http")) loc else URL(url, loc).toString()
+                    redirectCount++
+                    continue
+                }
+                if (code == 200) {
+                    val jsonStr = connection.inputStream.bufferedReader().use { it.readText() }
+                    connection.disconnect()
+                    val parsed = parseCatalogJson(jsonStr)
+                    if (parsed.isNotEmpty()) return@withContext parsed
+                }
+                break
             }
-            connection.disconnect()
+            connection?.disconnect()
         } catch (_: Exception) {}
     }
     emptyList()
@@ -1116,7 +1376,7 @@ fun parseCatalogJson(jsonString: String): List<WatchFaceItem> {
                     nameAr = obj.optString("name_ar", obj.getString("name")),
                     description = obj.optString("description", ""),
                     descriptionAr = obj.optString("description_ar", obj.optString("description", "")),
-                    packageName = obj.optString("package_name", "com.mohamedzayed.nocturne.watchface"),
+                    packageName = obj.optString("package_name", "com.mohamedzayed.nocturne.wear.watchfacepush.nocturne"),
                     validationToken = obj.getString("validation_token"),
                     apkFilename = obj.getString("apk_filename"),
                     downloadUrl = obj.optString("download_url", "https://github.com/MZAYED2/Nocturne/releases/latest/download/${obj.getString("apk_filename")}"),

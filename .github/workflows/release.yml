@@ -45,13 +45,24 @@ jobs:
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Build Android Modules
+      - name: Build Watchface Base APK
         run: |
-          ./gradlew :watchface:assembleDebug :wear-bridge:assembleDebug :app:assembleDebug --no-daemon
+          ./gradlew :watchface:assembleDebug --no-daemon
 
       - name: Build and Validate WFF Push Packages
         run: |
           bash tools/build_all_wff.sh
+          # Embed WFF push packages into wear-bridge and phone assets
+          mkdir -p wear-bridge/src/main/assets
+          cp distribution/Nocturne-Emerald-Push.apk wear-bridge/src/main/assets/
+          mkdir -p app/src/main/assets/watchfaces
+          cp distribution/Nocturne-Sage-Push.apk app/src/main/assets/watchfaces/
+          cp distribution/Nocturne-Lunar-Push.apk app/src/main/assets/watchfaces/
+          cp distribution/Nocturne-Emerald-Push.apk app/src/main/assets/watchfaces/
+
+      - name: Build Wear Bridge and Phone App
+        run: |
+          ./gradlew :wear-bridge:assembleDebug :app:assembleDebug --no-daemon
 
       - name: Prepare Release Artifacts
         run: |

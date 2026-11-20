@@ -1,6 +1,5 @@
 package com.mohamedzayed.nocturne.wear
 
-import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
@@ -13,15 +12,19 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Divider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -43,18 +46,22 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.FileOutputStream
+
+data class InstalledSlotInfo(
+    val slotId: String,
+    val packageName: String,
+    val isActive: Boolean
+)
 
 class BridgeMainActivity : ComponentActivity() {
 
     companion object {
         private const val TAG = "NocturneBridge"
-        const val ACTION_TEST_PUSH = "com.mohamedzayed.nocturne.wear.TEST_PUSH"
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
-        handleIntent(intent)
 
         setContent {
             BridgeScreen(
@@ -64,46 +71,58 @@ class BridgeMainActivity : ComponentActivity() {
                         "com.google.wear.permission.SET_PUSHED_WATCH_FACE_AS_ACTIVE"
                     ) == PackageManager.PERMISSION_GRANTED
                 },
-                onTestPushEmerald = { callback ->
-                    testPushEmerald(callback)
+                onQueryInstalled = {
+                    queryInstalledFaces()
+                },
+                onInstallFromAssets = { callback ->
+                    installEmeraldFromAssets(callback)
                 }
             )
         }
     }
 
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        handleIntent(intent)
-    }
-
-    private fun handleIntent(intent: Intent?) {
-        if (intent?.action == ACTION_TEST_PUSH) {
-            val apkPath = intent.getStringExtra("apkPath") ?: "/sdcard/Download/Nocturne-Emerald-Push.apk"
-            val token = intent.getStringExtra("token") ?: "EmGVHYSZjOXqn2847E1derHhu/D+eHyn1ZlJLggCpr0=:MS4wLjA="
-            Log.i(TAG, "Received ACTION_TEST_PUSH for $apkPath")
-            pushApk(File(apkPath), token) { success, msg ->
-                Toast.makeText(this, msg, Toast.LENGTH_LONG).show()
+    private suspend fun queryInstalledFaces(): Pair<Int, List<InstalledSlotInfo>> = withContext(Dispatchers.IO) {
+        try {
+            val pushManager = WatchFacePushManagerFactory.createWatchFacePushManager(applicationContext)
+            val list = pushManager.listWatchFaces()
+            val details = list.installedWatchFaceDetails.map { item ->
+                val isActive = try {
+                    pushManager.isWatchFaceActive(item.packageName)
+                } catch (_: Exception) {
+                    false
+                }
+                InstalledSlotInfo(item.slotId, item.packageName, isActive)
             }
+            Pair(list.remainingSlotCount, details)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to query installed watch faces", e)
+            Pair(0, emptyList())
         }
     }
 
-    private fun testPushEmerald(callback: (Boolean, String) -> Unit) {
-        val emeraldFile = File(cacheDir, "Nocturne-Emerald-Push.apk")
-        val token = "W07v05D8pJ0R3om235ZHsB8E8HqvE0yIlR+KqKBc540=:MS4wLjA="
-        pushApk(emeraldFile, token, callback)
-    }
-
-    private fun pushApk(file: File, token: String, callback: (Boolean, String) -> Unit) {
-        if (!file.exists()) {
-            callback(false, "File not found: ${file.name}")
-            return
-        }
-
-        val pushManager = WatchFacePushManagerFactory.createWatchFacePushManager(applicationContext)
-
+    private fun installEmeraldFromAssets(callback: (Boolean, String) -> Unit) {
         kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
+            val tempFile = File(cacheDir, "Nocturne-Emerald-Push.apk")
             try {
-                val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+                // 1. Copy from assets
+                val assetList = assets.list("") ?: emptyArray()
+                if (!assetList.contains("Nocturne-Emerald-Push.apk")) {
+                    withContext(Dispatchers.Main) {
+                        callback(false, "الملف غير متوفر في أصول التطبيق")
+                    }
+                    return@launch
+                }
+
+                assets.open("Nocturne-Emerald-Push.apk").use { input ->
+                    FileOutputStream(tempFile).use { output ->
+                        input.copyTo(output)
+                    }
+                }
+
+                val token = "W07v05D8pJ0R3om235ZHsB8E8HqvE0yIlR+KqKBc540=:MS4wLjA="
+                val pushManager = WatchFacePushManagerFactory.createWatchFacePushManager(applicationContext)
+                val pfd = ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY)
+
                 val list = pushManager.listWatchFaces()
                 val existing = list.installedWatchFaceDetails.firstOrNull()
 
@@ -127,13 +146,15 @@ class BridgeMainActivity : ComponentActivity() {
                 }
 
                 withContext(Dispatchers.Main) {
-                    callback(true, "✓ تم تثبيت الواجهة في خانة $slotId (نشطة: $activeSet)")
+                    callback(true, "✓ تم تثبيت وتفعيل Emerald في الخانة $slotId (نشطة: $activeSet)")
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Push failed", e)
                 withContext(Dispatchers.Main) {
                     callback(false, "فشل التثبيت: ${e.message}")
                 }
+            } finally {
+                if (tempFile.exists()) tempFile.delete()
             }
         }
     }
@@ -142,12 +163,15 @@ class BridgeMainActivity : ComponentActivity() {
 @Composable
 fun BridgeScreen(
     onCheckPermission: () -> Boolean,
-    onTestPushEmerald: ((Boolean, String) -> Unit) -> Unit
+    onQueryInstalled: suspend () -> Pair<Int, List<InstalledSlotInfo>>,
+    onInstallFromAssets: ((Boolean, String) -> Unit) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
     var hasPermission by remember { mutableStateOf(onCheckPermission()) }
-    var statusText by remember { mutableStateOf("جاهز لمزامنة الوشوش من الموبايل") }
-    var installedInfo by remember { mutableStateOf("") }
+    var statusText by remember { mutableStateOf("خدمة الربط: نشطة وتستمع للموبايل ✓") }
+    var remainingSlots by remember { mutableStateOf(1) }
+    var installedFaces by remember { mutableStateOf<List<InstalledSlotInfo>>(emptyList()) }
+    var isOperating by remember { mutableStateOf(false) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -155,8 +179,16 @@ fun BridgeScreen(
         hasPermission = isGranted
     }
 
-    fun refreshInstalled() {
-        // Will refresh when needed
+    fun refreshState() {
+        coroutineScope.launch {
+            val (slots, list) = onQueryInstalled()
+            remainingSlots = slots
+            installedFaces = list
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        refreshState()
     }
 
     Column(
@@ -214,25 +246,74 @@ fun BridgeScreen(
 
         Spacer(modifier = Modifier.height(8.dp))
 
-        // Test Emerald button
+        // Installed info
+        Text(
+            text = "الخانات المتبقية: $remainingSlots | المثبتة: ${installedFaces.size}",
+            color = Color(0xFFBAC7D5),
+            fontSize = 10.sp
+        )
+
+        installedFaces.forEach { item ->
+            Text(
+                text = "• خانة ${item.slotId}: ${if (item.isActive) "نشطة الآن ✓" else "مثبتة وغير نشطة"}",
+                color = if (item.isActive) Color(0xFF4CAF50) else Color(0xFFFFA000),
+                fontSize = 9.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
+
+        // Refresh Button
         Button(
             onClick = {
-                statusText = "جاري تثبيت Emerald..."
-                onTestPushEmerald { success, msg ->
+                refreshState()
+                statusText = "تم تحديث حالة الواجهات المثبتة بنجاح"
+            },
+            colors = ButtonDefaults.buttonColors(
+                containerColor = Color(0xFF1B2A38)
+            ),
+            modifier = Modifier.fillMaxWidth(0.9f)
+        ) {
+            Text(
+                text = "تحديث وفحص الواجهات",
+                color = Color(0xFF81D4FA),
+                fontSize = 10.sp
+            )
+        }
+
+        Spacer(modifier = Modifier.height(6.dp))
+
+        // Local real test button
+        Button(
+            onClick = {
+                isOperating = true
+                statusText = "جاري تثبيت وتفعيل Emerald فعلياً..."
+                onInstallFromAssets { success, msg ->
+                    isOperating = false
                     statusText = msg
+                    refreshState()
                 }
             },
+            enabled = !isOperating,
             colors = ButtonDefaults.buttonColors(
                 containerColor = Color(0xFF1B4332)
             ),
             modifier = Modifier.fillMaxWidth(0.9f)
         ) {
-            Text(
-                text = "اختبار تثبيت Emerald (تعديل الوش)",
-                color = Color(0xFFD8F3DC),
-                fontSize = 10.sp,
-                fontWeight = FontWeight.Bold
-            )
+            if (isOperating) {
+                CircularProgressIndicator(
+                    modifier = Modifier.height(14.dp).width(14.dp),
+                    color = Color.White,
+                    strokeWidth = 2.dp
+                )
+            } else {
+                Text(
+                    text = "تثبيت Emerald من الذاكرة (اختبار فعلي)",
+                    color = Color(0xFFD8F3DC),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }

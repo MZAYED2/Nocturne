@@ -18,6 +18,7 @@ app/build/
 .cxx
 local.properties
 *.apk
+!wear-bridge/src/main/assets/*.apk
 *.idsig
 *.jks
 *.keystore
