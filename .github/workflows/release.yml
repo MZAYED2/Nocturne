@@ -35,21 +35,53 @@ jobs:
           chmod +x gradlew
           chmod +x tools/build_all_wff.sh
 
-      - name: Determine Version Tag
+      - name: Setup Signing Keystore
+        env:
+          KEYSTORE_BASE64: ${{ secrets.NOCTURNE_KEYSTORE_BASE64 }}
+        run: |
+          mkdir -p .signing
+          if [ -n "$KEYSTORE_BASE64" ]; then
+            echo "Decoding permanent release keystore from GitHub Secrets..."
+            echo "$KEYSTORE_BASE64" | base64 -d > .signing/nocturne-release.jks
+            echo "Keystore successfully written to .signing/nocturne-release.jks"
+          else
+            echo "::warning::NOCTURNE_KEYSTORE_BASE64 secret not set! Checking if fallback exists..."
+          fi
+
+      - name: Determine Version Tag and Code
         id: version
         run: |
           if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            TAG="${GITHUB_REF#refs/tags/}"
+            TAG="${GITHUB_REF#refs/tags/v}"
+            TAG_NAME="${GITHUB_REF#refs/tags/}"
           else
-            TAG="v1.0.${{ github.run_number }}"
+            TAG="1.0.${{ github.run_number }}"
+            TAG_NAME="v1.0.${{ github.run_number }}"
           fi
-          echo "tag=$TAG" >> $GITHUB_OUTPUT
+          MAJOR=$(echo $TAG | cut -d. -f1)
+          MINOR=$(echo $TAG | cut -d. -f2)
+          PATCH=$(echo $TAG | cut -d. -f3)
+          VCODE=$(( MAJOR * 1000 + MINOR * 100 + PATCH ))
+          echo "tag=$TAG_NAME" >> $GITHUB_OUTPUT
+          echo "raw_version=$TAG" >> $GITHUB_OUTPUT
+          echo "vcode=$VCODE" >> $GITHUB_OUTPUT
+          echo "Version: $TAG_NAME (Code: $VCODE)"
 
       - name: Build Watchface Base APK
+        env:
+          NOCTURNE_KEYSTORE_PATH: ${{ github.workspace }}/.signing/nocturne-release.jks
+          NOCTURNE_KEYSTORE_PASSWORD: ${{ secrets.NOCTURNE_KEYSTORE_PASSWORD || 'NocturneSecretKey2026!' }}
+          NOCTURNE_KEY_ALIAS: ${{ secrets.NOCTURNE_KEY_ALIAS || 'nocturne' }}
+          NOCTURNE_KEY_PASSWORD: ${{ secrets.NOCTURNE_KEY_PASSWORD || 'NocturneSecretKey2026!' }}
         run: |
-          ./gradlew :watchface:assembleDebug --no-daemon
+          ./gradlew :watchface:assembleDebug -PreleaseVersionCode=${{ steps.version.outputs.vcode }} -PreleaseVersionName=${{ steps.version.outputs.raw_version }} --no-daemon
 
       - name: Build and Validate WFF Push Packages
+        env:
+          NOCTURNE_KEYSTORE_PATH: ${{ github.workspace }}/.signing/nocturne-release.jks
+          NOCTURNE_KEYSTORE_PASSWORD: ${{ secrets.NOCTURNE_KEYSTORE_PASSWORD || 'NocturneSecretKey2026!' }}
+          NOCTURNE_KEY_ALIAS: ${{ secrets.NOCTURNE_KEY_ALIAS || 'nocturne' }}
+          NOCTURNE_KEY_PASSWORD: ${{ secrets.NOCTURNE_KEY_PASSWORD || 'NocturneSecretKey2026!' }}
         run: |
           bash tools/build_all_wff.sh
           # Embed WFF push packages into wear-bridge and phone assets
@@ -61,8 +93,13 @@ jobs:
           cp distribution/Nocturne-Emerald-Push.apk app/src/main/assets/watchfaces/
 
       - name: Build Wear Bridge and Phone App
+        env:
+          NOCTURNE_KEYSTORE_PATH: ${{ github.workspace }}/.signing/nocturne-release.jks
+          NOCTURNE_KEYSTORE_PASSWORD: ${{ secrets.NOCTURNE_KEYSTORE_PASSWORD || 'NocturneSecretKey2026!' }}
+          NOCTURNE_KEY_ALIAS: ${{ secrets.NOCTURNE_KEY_ALIAS || 'nocturne' }}
+          NOCTURNE_KEY_PASSWORD: ${{ secrets.NOCTURNE_KEY_PASSWORD || 'NocturneSecretKey2026!' }}
         run: |
-          ./gradlew :wear-bridge:assembleDebug :app:assembleDebug --no-daemon
+          ./gradlew :wear-bridge:assembleDebug :app:assembleDebug -PreleaseVersionCode=${{ steps.version.outputs.vcode }} -PreleaseVersionName=${{ steps.version.outputs.raw_version }} --no-daemon
 
       - name: Prepare Release Artifacts
         run: |

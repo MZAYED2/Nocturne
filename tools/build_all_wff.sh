@@ -15,11 +15,26 @@ APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
 VALIDATOR="$PROJECT_ROOT/tools/validator-push-cli.jar"
 BASE_APK="$PROJECT_ROOT/watchface/build/outputs/apk/debug/watchface-debug.apk"
 
-# Ensure debug keystore exists
-KEYSTORE="$HOME/.android/debug.keystore"
-if [ ! -f "$KEYSTORE" ]; then
-    mkdir -p "$HOME/.android"
-    keytool -genkey -v -keystore "$KEYSTORE" -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+# Locate release keystore
+if [ -n "$NOCTURNE_KEYSTORE_PATH" ] && [ -f "$NOCTURNE_KEYSTORE_PATH" ]; then
+    KEYSTORE="$NOCTURNE_KEYSTORE_PATH"
+    KEYPASS="${NOCTURNE_KEY_PASSWORD:-NocturneSecretKey2026!}"
+    STOREPASS="${NOCTURNE_KEYSTORE_PASSWORD:-NocturneSecretKey2026!}"
+    ALIAS="${NOCTURNE_KEY_ALIAS:-nocturne}"
+elif [ -f "$PROJECT_ROOT/.signing/nocturne-release.jks" ]; then
+    KEYSTORE="$PROJECT_ROOT/.signing/nocturne-release.jks"
+    KEYPASS="NocturneSecretKey2026!"
+    STOREPASS="NocturneSecretKey2026!"
+    ALIAS="nocturne"
+else
+    KEYSTORE="$HOME/.android/debug.keystore"
+    KEYPASS="android"
+    STOREPASS="android"
+    ALIAS="androiddebugkey"
+    if [ ! -f "$KEYSTORE" ]; then
+        mkdir -p "$HOME/.android"
+        keytool -genkey -v -keystore "$KEYSTORE" -alias androiddebugkey -storepass android -keypass android -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Android Debug,O=Android,C=US"
+    fi
 fi
 
 # Compile PosixZipRepack
@@ -62,7 +77,7 @@ build_wff() {
     "$ZIPALIGN" -p -f 4 "$UNALIGNED" "$ALIGNED"
     rm -f "$UNALIGNED"
 
-    "$APKSIGNER" sign --ks "$KEYSTORE" --ks-pass pass:android --ks-key-alias androiddebugkey --key-pass pass:android --out "$FINAL_APK" "$ALIGNED"
+    "$APKSIGNER" sign --ks "$KEYSTORE" --ks-pass pass:"$STOREPASS" --ks-key-alias "$ALIAS" --key-pass pass:"$KEYPASS" --out "$FINAL_APK" "$ALIGNED"
     rm -f "$ALIGNED"
 
     echo "Signed: $FINAL_APK"

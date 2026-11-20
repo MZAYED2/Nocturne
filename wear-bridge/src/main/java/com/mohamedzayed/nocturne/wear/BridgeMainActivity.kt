@@ -1,6 +1,8 @@
 package com.mohamedzayed.nocturne.wear
 
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Bundle
 import android.os.ParcelFileDescriptor
 import android.util.Log
@@ -9,6 +11,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -76,8 +79,33 @@ class BridgeMainActivity : ComponentActivity() {
                 },
                 onInstallFromAssets = { callback ->
                     installEmeraldFromAssets(callback)
+                },
+                onCheckBridgeUpdate = {
+                    val file = File(filesDir, "Nocturne-WearBridge-update.apk")
+                    if (file.exists() && file.length() > 1_000_000L) file else null
+                },
+                onInstallBridgeUpdate = { file ->
+                    installBridgeApk(file)
                 }
             )
+        }
+    }
+
+    private fun installBridgeApk(apkFile: File) {
+        try {
+            val uri = FileProvider.getUriForFile(
+                applicationContext,
+                "$packageName.fileprovider",
+                apkFile
+            )
+            val intent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(uri, "application/vnd.android.package-archive")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            startActivity(intent)
+        } catch (e: Exception) {
+            Log.e(TAG, "Direct install intent failed", e)
+            Toast.makeText(this, "Wear OS يتطلب التثبيت المباشر عبر GeminiMan. تم حفظ الملف للتحديث فوق النسخة القديمة.", Toast.LENGTH_LONG).show()
         }
     }
 
@@ -164,7 +192,9 @@ class BridgeMainActivity : ComponentActivity() {
 fun BridgeScreen(
     onCheckPermission: () -> Boolean,
     onQueryInstalled: suspend () -> Pair<Int, List<InstalledSlotInfo>>,
-    onInstallFromAssets: ((Boolean, String) -> Unit) -> Unit
+    onInstallFromAssets: ((Boolean, String) -> Unit) -> Unit,
+    onCheckBridgeUpdate: () -> File?,
+    onInstallBridgeUpdate: (File) -> Unit
 ) {
     val coroutineScope = rememberCoroutineScope()
     var hasPermission by remember { mutableStateOf(onCheckPermission()) }
@@ -172,6 +202,7 @@ fun BridgeScreen(
     var remainingSlots by remember { mutableStateOf(1) }
     var installedFaces by remember { mutableStateOf<List<InstalledSlotInfo>>(emptyList()) }
     var isOperating by remember { mutableStateOf(false) }
+    var pendingUpdateFile by remember { mutableStateOf<File?>(null) }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission()
@@ -180,6 +211,7 @@ fun BridgeScreen(
     }
 
     fun refreshState() {
+        pendingUpdateFile = onCheckBridgeUpdate()
         coroutineScope.launch {
             val (slots, list) = onQueryInstalled()
             remainingSlots = slots
@@ -262,6 +294,42 @@ fun BridgeScreen(
         }
 
         Spacer(modifier = Modifier.height(8.dp))
+
+        if (pendingUpdateFile != null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .background(Color(0xFF1E2836))
+                    .padding(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = "تحديث جديد متوفر لـ WearBridge!",
+                    color = Color(0xFFFFD54F),
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Button(
+                    onClick = {
+                        pendingUpdateFile?.let { onInstallBridgeUpdate(it) }
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFF57F17)
+                    ),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "تثبيت التحديث الآن",
+                        color = Color.Black,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+        }
 
         // Refresh Button
         Button(

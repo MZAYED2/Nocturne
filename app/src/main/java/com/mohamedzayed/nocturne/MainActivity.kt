@@ -63,6 +63,11 @@ import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
+import com.mohamedzayed.nocturne.update.ReleaseInfo
+import com.mohamedzayed.nocturne.update.UpdateCenterDialog
+import com.mohamedzayed.nocturne.update.UpdateCheckWorker
+import com.mohamedzayed.nocturne.update.UpdateManager
+import com.mohamedzayed.nocturne.update.UpdatePreferences
 import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Calendar
@@ -137,13 +142,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        val shouldOpenUpdates = intent?.getBooleanExtra("open_updates_center", false) ?: false
         setContent {
             NocturneTheme {
                 Scaffold(
                     modifier = Modifier.fillMaxSize(),
                     containerColor = MaterialTheme.colorScheme.background
                 ) { innerPadding ->
-                    NocturneScreen(modifier = Modifier.padding(innerPadding))
+                    NocturneScreen(
+                        modifier = Modifier.padding(innerPadding),
+                        initialOpenUpdates = shouldOpenUpdates
+                    )
                 }
             }
         }
@@ -151,10 +160,29 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun NocturneScreen(modifier: Modifier = Modifier) {
+fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = false) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+
+    val updatePrefs = remember { UpdatePreferences(context) }
+    var latestReleaseInfo by remember { mutableStateOf<ReleaseInfo?>(null) }
+    var hasUpdateAvailable by remember { mutableStateOf(false) }
+    var showUpdateCenterDialog by remember { mutableStateOf(initialOpenUpdates) }
+
+    LaunchedEffect(Unit) {
+        if (updatePrefs.autoCheck) {
+            UpdateCheckWorker.schedule(context, updatePrefs.wifiOnly)
+            try {
+                val relRes = UpdateManager.checkLatestRelease()
+                if (relRes.isSuccess) {
+                    val rel = relRes.getOrThrow()
+                    latestReleaseInfo = rel
+                    hasUpdateAvailable = UpdateManager.isNewerThanCurrent(rel)
+                }
+            } catch (_: Exception) {}
+        }
+    }
 
     val defaultCatalog = remember {
         listOf(
@@ -306,51 +334,85 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
                         letterSpacing = 2.sp
                     )
                     Text(
-                        text = "Samsung Galaxy Watch 5 Edition",
+                        text = "v${UpdateManager.currentVersionName} • Galaxy Watch 5",
                         color = Color(0xFF8A99A8),
-                        fontSize = 12.sp
+                        fontSize = 11.sp
                     )
                 }
 
-                Surface(
-                    shape = RoundedCornerShape(20.dp),
-                    color = if (isConnectedToWatch == true) {
-                        if (isBridgeActive) Color(0xFF1B3828) else Color(0xFF2E3321)
-                    } else Color(0xFF262C36),
-                    border = BorderStroke(
-                        1.dp,
-                        if (isConnectedToWatch == true) {
-                            if (isBridgeActive) Color(0xFF2E7D32) else Color(0xFF8D7B1C)
-                        } else Color(0xFF455A64)
-                    )
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    // Update Center Button
+                    Surface(
+                        onClick = { showUpdateCenterDialog = true },
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (hasUpdateAvailable) Color(0xFF1B3828) else Color(0xFF1E2630),
+                        border = BorderStroke(
+                            1.dp,
+                            if (hasUpdateAvailable) Color(0xFF4CAF50) else Color(0xFF334E68)
+                        )
                     ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(
-                                    if (isConnectedToWatch == true) {
-                                        if (isBridgeActive) Color(0xFF4CAF50) else Color(0xFFFFC107)
-                                    } else Color(0xFF9E9E9E)
-                                )
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.SystemUpdate,
+                                contentDescription = null,
+                                tint = if (hasUpdateAvailable) Color(0xFF81C784) else Color(0xFFD4AF37),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = if (hasUpdateAvailable) "تحديث متوفر!" else "التحديثات",
+                                color = if (hasUpdateAvailable) Color(0xFFA5D6A7) else Color(0xFFE2E8F0),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.width(6.dp))
+
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isConnectedToWatch == true) {
+                            if (isBridgeActive) Color(0xFF1B3828) else Color(0xFF2E3321)
+                        } else Color(0xFF262C36),
+                        border = BorderStroke(
+                            1.dp,
+                            if (isConnectedToWatch == true) {
+                                if (isBridgeActive) Color(0xFF2E7D32) else Color(0xFF8D7B1C)
+                            } else Color(0xFF455A64)
                         )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = if (isConnectedToWatch == true) {
-                                if (connectedWatchName.isNotEmpty()) {
-                                    if (isBridgeActive) "$connectedWatchName (الربط جاهز)" else "$connectedWatchName"
-                                } else "الساعة متصلة"
-                            } else {
-                                "في انتظار الساعة"
-                            },
-                            color = Color(0xFFE2E8F0),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(7.dp)
+                                    .clip(CircleShape)
+                                    .background(
+                                        if (isConnectedToWatch == true) {
+                                            if (isBridgeActive) Color(0xFF4CAF50) else Color(0xFFFFC107)
+                                        } else Color(0xFF9E9E9E)
+                                    )
+                            )
+                            Spacer(modifier = Modifier.width(5.dp))
+                            Text(
+                                text = if (isConnectedToWatch == true) {
+                                    if (connectedWatchName.isNotEmpty()) {
+                                        if (isBridgeActive) "$connectedWatchName" else "$connectedWatchName"
+                                    } else "الساعة متصلة"
+                                } else {
+                                    "في انتظار الساعة"
+                                },
+                                color = Color(0xFFE2E8F0),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
@@ -940,6 +1002,13 @@ fun NocturneScreen(modifier: Modifier = Modifier) {
             },
             containerColor = Color(0xFF1E2630),
             shape = RoundedCornerShape(16.dp)
+        )
+    }
+
+    if (showUpdateCenterDialog) {
+        UpdateCenterDialog(
+            initialRelease = latestReleaseInfo,
+            onDismissRequest = { showUpdateCenterDialog = false }
         )
     }
 }

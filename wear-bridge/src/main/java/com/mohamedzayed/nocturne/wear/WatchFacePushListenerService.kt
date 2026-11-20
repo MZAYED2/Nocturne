@@ -1,6 +1,12 @@
 package com.mohamedzayed.nocturne.wear
 
 import android.content.Context
+import android.content.Intent
+import android.app.NotificationChannel
+import android.app.NotificationManager
+import android.app.PendingIntent
+import android.os.Build
+import androidx.core.app.NotificationCompat
 import android.net.Uri
 import android.os.ParcelFileDescriptor
 import android.util.Log
@@ -195,7 +201,60 @@ class WatchFacePushListenerService : WearableListenerService() {
                         )
                     }
                 }
+            return
         }
+
+        if (path == "/nocturne/update_bridge_channel") {
+            val updateApk = File(filesDir, "Nocturne-WearBridge-update.apk")
+            if (updateApk.exists()) updateApk.delete()
+
+            val channelClient = Wearable.getChannelClient(applicationContext)
+            val fileUri = Uri.fromFile(updateApk)
+
+            Log.i(TAG, "Starting ChannelClient.receiveFile for Bridge update: $fileUri")
+            channelClient.receiveFile(channel, fileUri, false)
+                .addOnSuccessListener {
+                    Log.i(TAG, "Bridge update received successfully! File size: ${updateApk.length()} bytes")
+                    notifyBridgeUpdateReady(updateApk)
+                }
+                .addOnFailureListener { error ->
+                    Log.e(TAG, "Failed to receive bridge update", error)
+                }
+            return
+        }
+    }
+
+    private fun notifyBridgeUpdateReady(apkFile: File) {
+        val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val channel = NotificationChannel(
+                "bridge_updates",
+                "تحديثات WearBridge",
+                NotificationManager.IMPORTANCE_HIGH
+            )
+            nm.createNotificationChannel(channel)
+        }
+
+        val intent = Intent(applicationContext, BridgeMainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+            putExtra("has_bridge_update", true)
+        }
+        val pendingIntent = PendingIntent.getActivity(
+            applicationContext,
+            3001,
+            intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) PendingIntent.FLAG_IMMUTABLE else 0)
+        )
+
+        val notification = NotificationCompat.Builder(applicationContext, "bridge_updates")
+            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle("تحديث WearBridge جاهز")
+            .setContentText("تم استلام تحديث جديد من الهاتف. افتح التطبيق للتثبيت.")
+            .setContentIntent(pendingIntent)
+            .setAutoCancel(true)
+            .build()
+
+        nm.notify(3001, notification)
     }
 
     private suspend fun processReceivedWatchFaceApk(apkFile: File, senderNodeId: String) {
