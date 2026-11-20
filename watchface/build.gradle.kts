@@ -1,43 +1,51 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
 }
 
 android {
-    namespace = "com.mohamedzayed.nocturne.wear.watchfacepush.nocturne"
+    namespace = "com.mohamedzayed.nocturne.watchfacepush.nocturne"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.mohamedzayed.nocturne.wear.watchfacepush.nocturne"
+        applicationId = "com.mohamedzayed.nocturne.watchfacepush.nocturne"
         minSdk = 34
         targetSdk = 36
-        versionCode = providers.gradleProperty("releaseVersionCode").orElse("1005").get().toInt()
-        versionName = providers.gradleProperty("releaseVersionName").orElse("1.0.5").get()
+        versionCode = providers.gradleProperty("releaseVersionCode").orElse("1006").get().toInt()
+        versionName = providers.gradleProperty("releaseVersionName").orElse("1.0.6").get()
+    }
+
+    val localProps = Properties()
+    val localPropFile = rootProject.file("local.properties")
+    if (localPropFile.exists()) {
+        localPropFile.inputStream().use { localProps.load(it) }
     }
 
     val keystoreEnvPath = providers.environmentVariable("NOCTURNE_KEYSTORE_PATH")
         .orElse(providers.environmentVariable("ANDROID_KEYSTORE_PATH")).orNull
+        ?: localProps.getProperty("nocturne.keystore.path")
     val keystorePasswordEnv = providers.environmentVariable("NOCTURNE_KEYSTORE_PASSWORD")
         .orElse(providers.environmentVariable("ANDROID_KEYSTORE_PASSWORD")).orNull
+        ?: localProps.getProperty("nocturne.keystore.password")
     val keyAliasEnv = providers.environmentVariable("NOCTURNE_KEY_ALIAS")
         .orElse(providers.environmentVariable("ANDROID_KEY_ALIAS")).orNull
+        ?: localProps.getProperty("nocturne.key.alias")
     val keyPasswordEnv = providers.environmentVariable("NOCTURNE_KEY_PASSWORD")
         .orElse(providers.environmentVariable("ANDROID_KEY_PASSWORD")).orNull
-    val localKeystoreFile = rootProject.file(".signing/nocturne-release.jks")
+        ?: localProps.getProperty("nocturne.key.password")
+
+    val resolvedStoreFile = if (keystoreEnvPath != null) rootProject.file(keystoreEnvPath) else rootProject.file(".signing/nocturne-release.jks")
 
     signingConfigs {
         create("release") {
-            if (keystoreEnvPath != null && keystorePasswordEnv != null && keyAliasEnv != null && keyPasswordEnv != null) {
-                storeFile = file(keystoreEnvPath)
+            if (resolvedStoreFile.exists() && !keystorePasswordEnv.isNullOrEmpty() && !keyAliasEnv.isNullOrEmpty() && !keyPasswordEnv.isNullOrEmpty()) {
+                storeFile = resolvedStoreFile
                 storePassword = keystorePasswordEnv
                 keyAlias = keyAliasEnv
                 keyPassword = keyPasswordEnv
-            } else if (localKeystoreFile.exists()) {
-                storeFile = localKeystoreFile
-                storePassword = "NocturneSecretKey2026!"
-                keyAlias = "nocturne"
-                keyPassword = "NocturneSecretKey2026!"
             } else {
                 storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
                 storePassword = "android"

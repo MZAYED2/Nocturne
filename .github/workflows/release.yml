@@ -70,18 +70,18 @@ jobs:
       - name: Build Watchface Base APK
         env:
           NOCTURNE_KEYSTORE_PATH: ${{ github.workspace }}/.signing/nocturne-release.jks
-          NOCTURNE_KEYSTORE_PASSWORD: ${{ secrets.NOCTURNE_KEYSTORE_PASSWORD || 'NocturneSecretKey2026!' }}
+          NOCTURNE_KEYSTORE_PASSWORD: ${{ secrets.NOCTURNE_KEYSTORE_PASSWORD }}
           NOCTURNE_KEY_ALIAS: ${{ secrets.NOCTURNE_KEY_ALIAS || 'nocturne' }}
-          NOCTURNE_KEY_PASSWORD: ${{ secrets.NOCTURNE_KEY_PASSWORD || 'NocturneSecretKey2026!' }}
+          NOCTURNE_KEY_PASSWORD: ${{ secrets.NOCTURNE_KEY_PASSWORD }}
         run: |
           ./gradlew :watchface:assembleDebug -PreleaseVersionCode=${{ steps.version.outputs.vcode }} -PreleaseVersionName=${{ steps.version.outputs.raw_version }} --no-daemon
 
       - name: Build and Validate WFF Push Packages
         env:
           NOCTURNE_KEYSTORE_PATH: ${{ github.workspace }}/.signing/nocturne-release.jks
-          NOCTURNE_KEYSTORE_PASSWORD: ${{ secrets.NOCTURNE_KEYSTORE_PASSWORD || 'NocturneSecretKey2026!' }}
+          NOCTURNE_KEYSTORE_PASSWORD: ${{ secrets.NOCTURNE_KEYSTORE_PASSWORD }}
           NOCTURNE_KEY_ALIAS: ${{ secrets.NOCTURNE_KEY_ALIAS || 'nocturne' }}
-          NOCTURNE_KEY_PASSWORD: ${{ secrets.NOCTURNE_KEY_PASSWORD || 'NocturneSecretKey2026!' }}
+          NOCTURNE_KEY_PASSWORD: ${{ secrets.NOCTURNE_KEY_PASSWORD }}
         run: |
           bash tools/build_all_wff.sh
           # Embed WFF push packages into wear-bridge and phone assets
@@ -95,9 +95,9 @@ jobs:
       - name: Build Wear Bridge and Phone App
         env:
           NOCTURNE_KEYSTORE_PATH: ${{ github.workspace }}/.signing/nocturne-release.jks
-          NOCTURNE_KEYSTORE_PASSWORD: ${{ secrets.NOCTURNE_KEYSTORE_PASSWORD || 'NocturneSecretKey2026!' }}
+          NOCTURNE_KEYSTORE_PASSWORD: ${{ secrets.NOCTURNE_KEYSTORE_PASSWORD }}
           NOCTURNE_KEY_ALIAS: ${{ secrets.NOCTURNE_KEY_ALIAS || 'nocturne' }}
-          NOCTURNE_KEY_PASSWORD: ${{ secrets.NOCTURNE_KEY_PASSWORD || 'NocturneSecretKey2026!' }}
+          NOCTURNE_KEY_PASSWORD: ${{ secrets.NOCTURNE_KEY_PASSWORD }}
         run: |
           ./gradlew :wear-bridge:assembleDebug :app:assembleDebug -PreleaseVersionCode=${{ steps.version.outputs.vcode }} -PreleaseVersionName=${{ steps.version.outputs.raw_version }} --no-daemon
 

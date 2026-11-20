@@ -147,7 +147,7 @@ class BridgeMainActivity : ComponentActivity() {
                     }
                 }
 
-                val token = "W07v05D8pJ0R3om235ZHsB8E8HqvE0yIlR+KqKBc540=:MS4wLjA="
+                val token = "R0rZewQOY75gkTO3l/Cl+bz+y9AbZOoMyq1C4022xVI=:MS4wLjA="
                 val pushManager = WatchFacePushManagerFactory.createWatchFacePushManager(applicationContext)
                 val pfd = ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY)
 

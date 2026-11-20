@@ -10,23 +10,38 @@ mkdir -p "$DIST_DIR"
 
 # Locate build-tools
 BUILD_TOOLS_DIR=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
-ZIPALIGN="$BUILD_TOOLS_DIR/zipalign"
-APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
+if [ -f "$BUILD_TOOLS_DIR/zipalign.exe" ]; then
+    ZIPALIGN="$BUILD_TOOLS_DIR/zipalign.exe"
+else
+    ZIPALIGN="$BUILD_TOOLS_DIR/zipalign"
+fi
+if [ -f "$BUILD_TOOLS_DIR/apksigner.bat" ]; then
+    APKSIGNER="$BUILD_TOOLS_DIR/apksigner.bat"
+else
+    APKSIGNER="$BUILD_TOOLS_DIR/apksigner"
+fi
 VALIDATOR="$PROJECT_ROOT/tools/validator-push-cli.jar"
 BASE_APK="$PROJECT_ROOT/watchface/build/outputs/apk/debug/watchface-debug.apk"
 
-# Locate release keystore
-if [ -n "$NOCTURNE_KEYSTORE_PATH" ] && [ -f "$NOCTURNE_KEYSTORE_PATH" ]; then
-    KEYSTORE="$NOCTURNE_KEYSTORE_PATH"
-    KEYPASS="${NOCTURNE_KEY_PASSWORD:-NocturneSecretKey2026!}"
-    STOREPASS="${NOCTURNE_KEYSTORE_PASSWORD:-NocturneSecretKey2026!}"
-    ALIAS="${NOCTURNE_KEY_ALIAS:-nocturne}"
-elif [ -f "$PROJECT_ROOT/.signing/nocturne-release.jks" ]; then
-    KEYSTORE="$PROJECT_ROOT/.signing/nocturne-release.jks"
-    KEYPASS="NocturneSecretKey2026!"
-    STOREPASS="NocturneSecretKey2026!"
-    ALIAS="nocturne"
-else
+# Locate release keystore credentials from environment or local.properties
+LOCAL_KEYPASS=""
+LOCAL_STOREPASS=""
+LOCAL_ALIAS="nocturne"
+LOCAL_PATH=""
+
+if [ -f "$PROJECT_ROOT/local.properties" ]; then
+    LOCAL_KEYPASS=$(grep "^nocturne.key.password=" "$PROJECT_ROOT/local.properties" | head -n 1 | cut -d= -f2-)
+    LOCAL_STOREPASS=$(grep "^nocturne.keystore.password=" "$PROJECT_ROOT/local.properties" | head -n 1 | cut -d= -f2-)
+    LOCAL_ALIAS=$(grep "^nocturne.key.alias=" "$PROJECT_ROOT/local.properties" | head -n 1 | cut -d= -f2-)
+    LOCAL_PATH=$(grep "^nocturne.keystore.path=" "$PROJECT_ROOT/local.properties" | head -n 1 | cut -d= -f2-)
+fi
+
+KEYSTORE="${NOCTURNE_KEYSTORE_PATH:-${LOCAL_PATH:-$PROJECT_ROOT/.signing/nocturne-release.jks}}"
+KEYPASS="${NOCTURNE_KEY_PASSWORD:-$LOCAL_KEYPASS}"
+STOREPASS="${NOCTURNE_KEYSTORE_PASSWORD:-$LOCAL_STOREPASS}"
+ALIAS="${NOCTURNE_KEY_ALIAS:-${LOCAL_ALIAS:-nocturne}}"
+
+if [ ! -f "$KEYSTORE" ]; then
     KEYSTORE="$HOME/.android/debug.keystore"
     KEYPASS="android"
     STOREPASS="android"
@@ -37,8 +52,22 @@ else
     fi
 fi
 
+# Detect Java 21+ executable
+JAVA_CMD="java"
+JAVAC_CMD="javac"
+if [ -n "$JAVA_HOME" ] && [ -x "$JAVA_HOME/bin/java" ]; then
+    JAVA_CMD="$JAVA_HOME/bin/java"
+    JAVAC_CMD="$JAVA_HOME/bin/javac"
+elif [ -x "/c/Program Files/Android/Android Studio/jbr/bin/java" ]; then
+    JAVA_CMD="/c/Program Files/Android/Android Studio/jbr/bin/java"
+    JAVAC_CMD="/c/Program Files/Android/Android Studio/jbr/bin/javac"
+elif [ -x "C:/Program Files/Android/Android Studio/jbr/bin/java.exe" ]; then
+    JAVA_CMD="C:/Program Files/Android/Android Studio/jbr/bin/java.exe"
+    JAVAC_CMD="C:/Program Files/Android/Android Studio/jbr/bin/javac.exe"
+fi
+
 # Compile PosixZipRepack
-javac -d "$PROJECT_ROOT/tools" "$PROJECT_ROOT/tools/PosixZipRepack.java"
+"$JAVAC_CMD" -d "$PROJECT_ROOT/tools" "$PROJECT_ROOT/tools/PosixZipRepack.java"
 
 build_wff() {
     local NAME="$1"
@@ -71,7 +100,7 @@ build_wff() {
     local ALIGNED=$(mktemp)
     local FINAL_APK="$DIST_DIR/$OUT_APK"
 
-    java -cp "$PROJECT_ROOT/tools" tools.PosixZipRepack "$TEMP_DIR" "$UNALIGNED"
+    "$JAVA_CMD" -cp "$PROJECT_ROOT/tools" tools.PosixZipRepack "$TEMP_DIR" "$UNALIGNED"
     rm -rf "$TEMP_DIR"
 
     "$ZIPALIGN" -p -f 4 "$UNALIGNED" "$ALIGNED"
@@ -82,8 +111,8 @@ build_wff() {
 
     echo "Signed: $FINAL_APK"
 
-    # Validate and extract token
-    local VAL_OUTPUT=$(java -jar "$VALIDATOR" -a "$FINAL_APK" -p "com.mohamedzayed.nocturne.wear" 2>&1)
+    # Validate and extract token (caller packageName is com.mohamedzayed.nocturne)
+    local VAL_OUTPUT=$("$JAVA_CMD" -jar "$VALIDATOR" -a "$FINAL_APK" -p "com.mohamedzayed.nocturne" 2>&1)
     echo "$VAL_OUTPUT"
 
     local TOKEN=$(echo "$VAL_OUTPUT" | grep -oE "generated token: [^ ]+" | awk '{print $3}')
