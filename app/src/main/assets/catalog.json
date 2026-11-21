@@ -1,6 +1,6 @@
 ﻿{
-    "version": 5,
-    "updated_at": "2026-11-21T00:25:00Z",
+    "version": 6,
+    "updated_at": "2026-11-21T00:48:00Z",
     "github_repo": "MZAYED2/Nocturne",
     "download_base_url": "https://github.com/MZAYED2/Nocturne/releases/latest/download",
     "watchfaces": [
@@ -10,13 +10,13 @@
             "name_ar": "Sage Nocturne (العثماني الأخضر)",
             "description": "Ottoman Sage Green heritage dial with engraved calligraphy, small moon phase, and active/AOD modes.",
             "description_ar": "التصميم العثماني الأخضر الأصلي مع الزخرفة العثمانية، القمر الصغير، الذكر، والتعقيدات الثلاث.",
-            "package_name": "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-            "validation_token": "LEyUVVVxzrdjahyMZuKs1kuDJfvjhYbAsDZANJ8y8Gw=:MS4wLjA=",
+            "package_name": "com.mohamedzayed.nocturne.watchfacepush.sage",
+            "validation_token": "IdqTjyAYUMA73v4dV8y+qjrOtLxCiyXiGlfVgRtTf0U=:MS4wLjA=",
             "apk_filename": "Nocturne-Sage-Push.apk",
             "download_url": "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Sage-Push.apk",
             "preview": "preview_sage.png",
-            "version_code": 1,
-            "version_name": "1.0.0"
+            "version_code": 1007,
+            "version_name": "1.0.7"
         },
         {
             "id": "lunar_phase",
@@ -24,13 +24,13 @@
             "name_ar": "Lunar Phase (القمر السينمائي)",
             "description": "Large poetic astronomical moon disc filling the watch display, with luminous dual-contrast hands and minimal AOD dial.",
             "description_ar": "قمر سينمائي كبير يملأ 92% من الشاشة بإضاءة ثلاثية الأبعاد دقيقة فلكياً عبر 29 منزلة، مع عقارب بتباين مزدوج، وشاشة AOD سوداء موفرة للطاقة.",
-            "package_name": "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-            "validation_token": "gdlDw+2eKHp7UIsh884nEwZRDfaSnQa46Ve2sjQzFK0=:MS4wLjA=",
+            "package_name": "com.mohamedzayed.nocturne.watchfacepush.lunar",
+            "validation_token": "dao/NFBcjEunVaURIMcnxWnrl+cxEZX4EqCYODrWOUA=:MS4wLjA=",
             "apk_filename": "Nocturne-Lunar-Push.apk",
             "download_url": "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Lunar-Push.apk",
             "preview": "preview_lunar.png",
-            "version_code": 1,
-            "version_name": "1.0.0"
+            "version_code": 1007,
+            "version_name": "1.0.7"
         },
         {
             "id": "obsidian_atelier",
@@ -38,13 +38,13 @@
             "name_ar": "Obsidian Atelier (الميكانيكي الفاخر)",
             "description": "Masterpiece Haute Horlogerie mechanical dial in Brushed Platinum and Smoked Graphite with Dauphine hands, Small Seconds subdial, Power Reserve indicator, and date window.",
             "description_ar": "تصميم ميكانيكي كلاسيكي فاخر بلون البلاتين المصقول والجرافيت الدخاني، مع عقارب دوفين المركزية، عقرب الثواني الصغير عند 6، مؤشر احتياطي الطاقة عند 9، ونافذة التاريخ المشطوفة.",
-            "package_name": "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-            "validation_token": "/W6ruN8V/lOBkN9ZRlohS2vnErEUlhcSy8BYpzExTY8=:MS4wLjA=",
+            "package_name": "com.mohamedzayed.nocturne.watchfacepush.obsidian",
+            "validation_token": "83UIWxEtUdiLIBRfCFhE6jXi2vLUtqR07ksIIhNDBVQ=:MS4wLjA=",
             "apk_filename": "Nocturne-Obsidian-Push.apk",
             "download_url": "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Obsidian-Push.apk",
             "preview": "preview_obsidian.png",
-            "version_code": 1,
-            "version_name": "1.0.0"
+            "version_code": 1007,
+            "version_name": "1.0.7"
         },
         {
             "id": "emerald_nocturne",
@@ -52,13 +52,13 @@
             "name_ar": "Emerald Nocturne (الزمردي الإمبراطوري)",
             "description": "Imperial Emerald and Gold edition with ornate Ottoman pattern, golden hands, and emerald accents.",
             "description_ar": "الإصدار الزمردي والذهبي الإمبراطوري بتعديل بصري واضح وعقارب ذهبية لاختبار وتأكيد التحديث اللاسلكي.",
-            "package_name": "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-            "validation_token": "+PMlrhh0DSVpFbZYvKOea3AYQ6d89EvZbq5xRhRhz5U=:MS4wLjA=",
+            "package_name": "com.mohamedzayed.nocturne.watchfacepush.emerald",
+            "validation_token": "sMLoWBoGfIMY43GjCCXhl2VAQdgjWgcmEDuuEeBvWX4=:MS4wLjA=",
             "apk_filename": "Nocturne-Emerald-Push.apk",
             "download_url": "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Emerald-Push.apk",
             "preview": "preview_emerald.png",
-            "version_code": 1,
-            "version_name": "1.0.0"
+            "version_code": 1007,
+            "version_name": "1.0.7"
         }
     ]
 }

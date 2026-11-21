@@ -11,11 +11,11 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.mohamedzayed.nocturne.watchfacepush.nocturne"
+        applicationId = providers.gradleProperty("wffPackageName").orElse("com.mohamedzayed.nocturne.watchfacepush.nocturne").get()
         minSdk = 34
         targetSdk = 36
-        versionCode = providers.gradleProperty("releaseVersionCode").orElse("1006").get().toInt()
-        versionName = providers.gradleProperty("releaseVersionName").orElse("1.0.6").get()
+        versionCode = providers.gradleProperty("wffVersionCode").orElse(providers.gradleProperty("releaseVersionCode").orElse("1007")).get().toInt()
+        versionName = providers.gradleProperty("wffVersionName").orElse(providers.gradleProperty("releaseVersionName").orElse("1.0.7")).get()
     }
 
     val localProps = Properties()

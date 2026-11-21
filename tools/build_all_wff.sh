@@ -74,11 +74,16 @@ build_wff() {
     local ID="$2"
     local XML_FILE="$3"
     local OUT_APK="$4"
-    local DESC="$5"
+    local PKG_NAME="$5"
+    local VCODE="$6"
+    local VNAME="$7"
+    local DESC="$8"
 
     echo "=================================================="
-    echo "Building WFF Package: $NAME ($ID)"
+    echo "Building WFF Package: $NAME ($PKG_NAME, v$VNAME Code $VCODE)"
     echo "=================================================="
+
+    ./gradlew :watchface:assembleDebug -PwffPackageName="$PKG_NAME" -PwffVersionCode="$VCODE" -PwffVersionName="$VNAME" --quiet --no-daemon
 
     local TEMP_DIR=$(mktemp -d)
     unzip -q "$BASE_APK" -d "$TEMP_DIR"
@@ -120,12 +125,12 @@ build_wff() {
         TOKEN=$(echo "$VAL_OUTPUT" | grep -oE "Validation token: [^ ]+" | awk '{print $3}')
     fi
 
-    echo "Token for $NAME: $TOKEN"
+    echo "Token for $NAME ($PKG_NAME): $TOKEN"
 }
 
-build_wff "Sage Nocturne" "sage_nocturne" "$PROJECT_ROOT/tools/watchface_sage.xml" "Nocturne-Sage-Push.apk" "Ottoman Sage Green heritage dial"
-build_wff "Lunar Phase" "lunar_phase" "$PROJECT_ROOT/tools/watchface_lunar.xml" "Nocturne-Lunar-Push.apk" "Large poetic astronomical moon disc"
-build_wff "Obsidian Atelier" "obsidian_atelier" "$PROJECT_ROOT/tools/watchface_obsidian.xml" "Nocturne-Obsidian-Push.apk" "Mechanical luxury dial with small seconds and power reserve"
-build_wff "Emerald Nocturne" "emerald_nocturne" "$PROJECT_ROOT/tools/watchface_emerald.xml" "Nocturne-Emerald-Push.apk" "Imperial Emerald and Gold edition (Legacy Backup)"
+build_wff "Sage Nocturne" "sage_nocturne" "$PROJECT_ROOT/tools/watchface_sage.xml" "Nocturne-Sage-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.sage" "1007" "1.0.7" "Ottoman Sage Green heritage dial"
+build_wff "Lunar Phase" "lunar_phase" "$PROJECT_ROOT/tools/watchface_lunar.xml" "Nocturne-Lunar-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.lunar" "1007" "1.0.7" "Large poetic astronomical moon disc"
+build_wff "Obsidian Atelier" "obsidian_atelier" "$PROJECT_ROOT/tools/watchface_obsidian.xml" "Nocturne-Obsidian-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.obsidian" "1007" "1.0.7" "Mechanical luxury dial with small seconds and power reserve"
+build_wff "Emerald Nocturne" "emerald_nocturne" "$PROJECT_ROOT/tools/watchface_emerald.xml" "Nocturne-Emerald-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.emerald" "1007" "1.0.7" "Imperial Emerald and Gold edition (Legacy Backup)"
 
 echo "All WFF Packages Built and Validated Successfully!"

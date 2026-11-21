@@ -200,13 +200,13 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 nameAr = "Sage Nocturne (العثماني الأخضر)",
                 description = "Ottoman Sage Green heritage dial with engraved calligraphy, small moon phase, and active/AOD modes.",
                 descriptionAr = "التصميم العثماني الأخضر الأصلي مع الزخرفة العثمانية، القمر الصغير، الذكر، والتعقيدات الثلاث.",
-                packageName = "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-                validationToken = "LEyUVVVxzrdjahyMZuKs1kuDJfvjhYbAsDZANJ8y8Gw=:MS4wLjA=",
+                packageName = "com.mohamedzayed.nocturne.watchfacepush.sage",
+                validationToken = "IdqTjyAYUMA73v4dV8y+qjrOtLxCiyXiGlfVgRtTf0U=:MS4wLjA=",
                 apkFilename = "Nocturne-Sage-Push.apk",
                 downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Sage-Push.apk",
                 preview = "preview_sage.png",
-                versionCode = 1,
-                versionName = "1.0.0"
+                versionCode = 1007,
+                versionName = "1.0.7"
             ),
             WatchFaceItem(
                 id = "lunar_phase",
@@ -214,13 +214,13 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 nameAr = "Lunar Phase (القمر السينمائي)",
                 description = "Large poetic astronomical moon disc filling the watch display, with luminous dual-contrast hands and minimal AOD dial.",
                 descriptionAr = "قمر سينمائي كبير يملأ 92% من الشاشة بإضاءة ثلاثية الأبعاد دقيقة فلكياً عبر 29 منزلة، مع عقارب بتباين مزدوج، وشاشة AOD سوداء موفرة للطاقة.",
-                packageName = "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-                validationToken = "gdlDw+2eKHp7UIsh884nEwZRDfaSnQa46Ve2sjQzFK0=:MS4wLjA=",
+                packageName = "com.mohamedzayed.nocturne.watchfacepush.lunar",
+                validationToken = "dao/NFBcjEunVaURIMcnxWnrl+cxEZX4EqCYODrWOUA=:MS4wLjA=",
                 apkFilename = "Nocturne-Lunar-Push.apk",
                 downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Lunar-Push.apk",
                 preview = "preview_lunar.png",
-                versionCode = 1,
-                versionName = "1.0.0"
+                versionCode = 1007,
+                versionName = "1.0.7"
             ),
             WatchFaceItem(
                 id = "obsidian_atelier",
@@ -228,13 +228,13 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 nameAr = "Obsidian Atelier (الميكانيكي الفاخر)",
                 description = "Masterpiece Haute Horlogerie mechanical dial in Brushed Platinum and Smoked Graphite with Dauphine hands, Small Seconds subdial, Power Reserve indicator, and date window.",
                 descriptionAr = "تصميم ميكانيكي كلاسيكي فاخر بلون البلاتين المصقول والجرافيت الدخاني، مع عقارب دوفين المركزية، عقرب الثواني الصغير عند 6، مؤشر احتياطي الطاقة عند 9، ونافذة التاريخ المشطوفة.",
-                packageName = "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-                validationToken = "/W6ruN8V/lOBkN9ZRlohS2vnErEUlhcSy8BYpzExTY8=:MS4wLjA=",
+                packageName = "com.mohamedzayed.nocturne.watchfacepush.obsidian",
+                validationToken = "83UIWxEtUdiLIBRfCFhE6jXi2vLUtqR07ksIIhNDBVQ=:MS4wLjA=",
                 apkFilename = "Nocturne-Obsidian-Push.apk",
                 downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Obsidian-Push.apk",
                 preview = "preview_obsidian.png",
-                versionCode = 1,
-                versionName = "1.0.0"
+                versionCode = 1007,
+                versionName = "1.0.7"
             ),
             WatchFaceItem(
                 id = "emerald_nocturne",
@@ -242,13 +242,13 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 nameAr = "Emerald Nocturne (الزمردي الإمبراطوري)",
                 description = "Imperial Emerald and Gold edition with ornate Ottoman pattern, golden hands, and emerald accents.",
                 descriptionAr = "الإصدار الزمردي والذهبي الإمبراطوري بتعديل بصري واضح وعقارب ذهبية لاختبار وتأكيد التحديث اللاسلكي.",
-                packageName = "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-                validationToken = "+PMlrhh0DSVpFbZYvKOea3AYQ6d89EvZbq5xRhRhz5U=:MS4wLjA=",
+                packageName = "com.mohamedzayed.nocturne.watchfacepush.emerald",
+                validationToken = "sMLoWBoGfIMY43GjCCXhl2VAQdgjWgcmEDuuEeBvWX4=:MS4wLjA=",
                 apkFilename = "Nocturne-Emerald-Push.apk",
                 downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Emerald-Push.apk",
                 preview = "preview_emerald.png",
-                versionCode = 1,
-                versionName = "1.0.0"
+                versionCode = 1007,
+                versionName = "1.0.7"
             )
         )
     }
