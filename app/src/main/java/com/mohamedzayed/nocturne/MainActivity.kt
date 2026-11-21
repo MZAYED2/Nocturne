@@ -1678,84 +1678,79 @@ fun DrawScope.drawSageNocturneFace(
         alpha = ringAlpha
     )
 
-    // Subdial Complications Content
+    // Subdial Complications Content (Strictly matching authentic watch design in Image 1)
     if (!isAod) {
         // Battery Icon inside left subdial
         val batBmp = getBmp(R.drawable.refined_battery)
-        val batW = (65 * scale).toInt()
-        val batH = (45 * scale).toInt()
+        val batW = (58 * scale).toInt()
+        val batH = (40 * scale).toInt()
         val batX = (285 * scale - batW / 2).toInt()
-        val batY = (420 * scale).toInt()
+        val batY = (425 * scale).toInt()
         drawImage(
             image = batBmp,
             dstOffset = IntOffset(batX, batY),
             dstSize = IntSize(batW, batH)
         )
 
+        // Calendar Icon inside right subdial
+        val calBmp = getBmp(R.drawable.sage_calendar)
+        val calW = (50 * scale).toInt()
+        val calH = (46 * scale).toInt()
+        val calX = (715 * scale - calW / 2).toInt()
+        val calY = (422 * scale).toInt()
+        drawImage(
+            image = calBmp,
+            dstOffset = IntOffset(calX, calY),
+            dstSize = IntSize(calW, calH)
+        )
+
+        // Steps Shoe Icon at bottom
+        val stepBmp = getBmp(R.drawable.sage_steps)
+        val stepW = (48 * scale).toInt()
+        val stepH = (36 * scale).toInt()
+        val stepX = (500 * scale - stepW / 2).toInt()
+        val stepY = (622 * scale).toInt()
+        drawImage(
+            image = stepBmp,
+            dstOffset = IntOffset(stepX, stepY),
+            dstSize = IntSize(stepW, stepH)
+        )
+
         drawContext.canvas.nativeCanvas.apply {
             val numPaint = Paint().apply {
                 color = android.graphics.Color.parseColor("#FFF0D8")
                 textAlign = Paint.Align.CENTER
-                textSize = 34f * scale
+                textSize = 50f * scale
                 isAntiAlias = true
                 typeface = Typeface.DEFAULT_BOLD
             }
-            val labelPaint = Paint().apply {
-                color = android.graphics.Color.parseColor("#A8B5A2")
+            val monthPaint = Paint().apply {
+                color = android.graphics.Color.parseColor("#FFF0D8")
                 textAlign = Paint.Align.CENTER
-                textSize = 20f * scale
+                textSize = 38f * scale
                 isAntiAlias = true
                 typeface = Typeface.DEFAULT_BOLD
-                letterSpacing = 0.08f
             }
 
-            // Battery Percentage & Label
-            drawText("82%", 285f * scale, 502f * scale, numPaint)
-            drawText("BATTERY", 285f * scale, 538f * scale, labelPaint)
+            // Battery Percentage ("45%")
+            drawText("45%", 285f * scale, 532f * scale, numPaint)
 
-            // Date & Month
-            val day = currentTime.get(Calendar.DAY_OF_MONTH).toString()
-            val monthNames = arrayOf("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
-            val month = monthNames[currentTime.get(Calendar.MONTH)]
+            // Date ("Nov" and "21")
+            drawText("Nov", 715f * scale, 502f * scale, monthPaint)
+            drawText("21", 715f * scale, 555f * scale, numPaint)
 
-            drawText(month, 715f * scale, 455f * scale, labelPaint)
-            drawText(day, 715f * scale, 505f * scale, numPaint)
-
-            // Steps Indicator at Bottom
-            drawText("7,420", 500f * scale, 710f * scale, numPaint)
-            drawText("STEPS", 500f * scale, 742f * scale, labelPaint)
+            // Steps count ("0")
+            drawText("0", 500f * scale, 725f * scale, numPaint)
         }
-
-        // Steps Arc
-        val arcCenter = Offset(500f * scale, 700f * scale)
-        val arcRadius = 145f * scale
-        drawArc(
-            color = Color(0x33A8B5A2),
-            startAngle = 140f,
-            sweepAngle = 260f,
-            useCenter = false,
-            topLeft = Offset(arcCenter.x - arcRadius, arcCenter.y - arcRadius),
-            size = Size(arcRadius * 2, arcRadius * 2),
-            style = Stroke(width = 4f * scale, cap = StrokeCap.Round)
-        )
-        drawArc(
-            color = Color(0xFF8FA89B),
-            startAngle = 140f,
-            sweepAngle = 190f,
-            useCenter = false,
-            topLeft = Offset(arcCenter.x - arcRadius, arcCenter.y - arcRadius),
-            size = Size(arcRadius * 2, arcRadius * 2),
-            style = Stroke(width = 4f * scale, cap = StrokeCap.Round)
-        )
     }
 
-    // 5. Dhikr Calligraphy (Active and subtle in AOD)
+    // 5. Dhikr Calligraphy (Centered at 300, 335 with 400x80 matching WFF)
     val dhikrIndex = (currentTime.get(Calendar.MINUTE) / 15) % 4
     val dhikrBmp = getBmp(dhikrResIds[dhikrIndex])
     drawImage(
         image = dhikrBmp,
-        dstOffset = IntOffset((60 * scale).toInt(), (320 * scale).toInt()),
-        dstSize = IntSize((880 * scale).toInt(), (144 * scale).toInt()),
+        dstOffset = IntOffset((300 * scale).toInt(), (335 * scale).toInt()),
+        dstSize = IntSize((400 * scale).toInt(), (80 * scale).toInt()),
         alpha = if (isAod) 0.65f else 0.95f
     )
 
@@ -2110,7 +2105,7 @@ fun DrawScope.drawObsidianAtelierFace(
 
     if (!isAod) {
         // Active Mode:
-        // 1. Brushed Metal Dial with Subdials & Applied Markers
+        // 1. Brushed Metal Dial with Subdials & Applied Markers (ZERO BRANDING)
         val dialBmp = getBmp(R.drawable.obsidian_dial)
         drawImage(
             image = dialBmp,
@@ -2118,50 +2113,37 @@ fun DrawScope.drawObsidianAtelierFace(
             dstSize = IntSize((1000 * scale).toInt(), (1000 * scale).toInt())
         )
 
-        // 2. Beveled Date Window at 4:30 (Day of month)
-        drawContext.canvas.nativeCanvas.apply {
-            val datePaint = Paint().apply {
-                color = android.graphics.Color.parseColor("#E7E5DE")
-                textAlign = Paint.Align.CENTER
-                textSize = 34f * scale
-                isAntiAlias = true
-                typeface = Typeface.DEFAULT_BOLD
-            }
-            val day = currentTime.get(Calendar.DAY_OF_MONTH).toString()
-            drawText(day, 690f * scale, 672f * scale, datePaint)
-        }
-
-        // 3. Power Reserve Needle at 9 o'clock (285, 490)
+        // 2. Power Reserve Needle at 9 o'clock (Center at 215, 475)
         val powerBmp = getBmp(R.drawable.obsidian_power_hand)
-        val powerPivot = Offset(285f * scale, 520f * scale)
-        val batteryPct = 84f
+        val powerPivot = Offset(215f * scale, 475f * scale)
+        val batteryPct = 72f
         val powerAngle = (batteryPct - 50f) * 1.2f
         withTransform({
             rotate(degrees = powerAngle, pivot = powerPivot)
         }) {
             drawImage(
                 image = powerBmp,
-                dstOffset = IntOffset((278 * scale).toInt(), (450 * scale).toInt()),
-                dstSize = IntSize((14 * scale).toInt(), (100 * scale).toInt())
+                dstOffset = IntOffset((207 * scale).toInt(), (375 * scale).toInt()),
+                dstSize = IntSize((16 * scale).toInt(), (125 * scale).toInt())
             )
         }
 
-        // 4. Small Seconds at 6 o'clock (Pivot at 500, 710)
+        // 3. Independent Small Seconds at 6 o'clock (Center at 500, 715)
         val seconds = currentTime.get(Calendar.SECOND)
         val secDeg = seconds * 6f
-        val secPivot = Offset(500f * scale, 710f * scale)
+        val secPivot = Offset(500f * scale, 715f * scale)
         val smallSecBmp = getBmp(R.drawable.obsidian_small_sec)
         withTransform({
             rotate(degrees = secDeg, pivot = secPivot)
         }) {
             drawImage(
                 image = smallSecBmp,
-                dstOffset = IntOffset((493 * scale).toInt(), (606 * scale).toInt()),
-                dstSize = IntSize((14 * scale).toInt(), (130 * scale).toInt())
+                dstOffset = IntOffset((492 * scale).toInt(), (595 * scale).toInt()),
+                dstSize = IntSize((16 * scale).toInt(), (160 * scale).toInt())
             )
         }
 
-        // 5. Center Dauphine Hands (Hour & Minute - NO center second hand)
+        // 4. Center 3D Faceted Dauphine Hands (Hour & Minute - NO center second hand)
         val hours = currentTime.get(Calendar.HOUR_OF_DAY) % 12
         val minutes = currentTime.get(Calendar.MINUTE)
         val hourDeg = hours * 30f + minutes * 0.5f
@@ -2173,8 +2155,8 @@ fun DrawScope.drawObsidianAtelierFace(
         }) {
             drawImage(
                 image = hourBmp,
-                dstOffset = IntOffset((477 * scale).toInt(), (245 * scale).toInt()),
-                dstSize = IntSize((46 * scale).toInt(), (290 * scale).toInt())
+                dstOffset = IntOffset((476 * scale).toInt(), (214 * scale).toInt()),
+                dstSize = IntSize((48 * scale).toInt(), (320 * scale).toInt())
             )
         }
 
@@ -2184,40 +2166,27 @@ fun DrawScope.drawObsidianAtelierFace(
         }) {
             drawImage(
                 image = minBmp,
-                dstOffset = IntOffset((481 * scale).toInt(), (145 * scale).toInt()),
-                dstSize = IntSize((38 * scale).toInt(), (390 * scale).toInt())
+                dstOffset = IntOffset((480 * scale).toInt(), (95 * scale).toInt()),
+                dstSize = IntSize((40 * scale).toInt(), (440 * scale).toInt())
             )
         }
 
-        // 6. Central Hub Cap
+        // 5. Central Multi-Layered Platinum Hub Cap
         val hubBmp = getBmp(R.drawable.obsidian_hub)
         drawImage(
             image = hubBmp,
-            dstOffset = IntOffset((474 * scale).toInt(), (474 * scale).toInt()),
-            dstSize = IntSize((52 * scale).toInt(), (52 * scale).toInt())
+            dstOffset = IntOffset((470 * scale).toInt(), (470 * scale).toInt()),
+            dstSize = IntSize((60 * scale).toInt(), (60 * scale).toInt())
         )
     } else {
         // AOD Mode:
-        // 1. AOD Dial (AMOLED Black with applied titanium markers & subtle rings)
+        // 1. AOD Dial (AMOLED Black with applied platinum markers & recessed date frame)
         val dialBmp = getBmp(R.drawable.obsidian_dial_aod)
         drawImage(
             image = dialBmp,
             dstOffset = IntOffset(0, 0),
             dstSize = IntSize((1000 * scale).toInt(), (1000 * scale).toInt())
         )
-
-        // 2. AOD Date Window
-        drawContext.canvas.nativeCanvas.apply {
-            val datePaint = Paint().apply {
-                color = android.graphics.Color.parseColor("#AAB6BB")
-                textAlign = Paint.Align.CENTER
-                textSize = 32f * scale
-                isAntiAlias = true
-                typeface = Typeface.DEFAULT_BOLD
-            }
-            val day = currentTime.get(Calendar.DAY_OF_MONTH).toString()
-            drawText(day, 690f * scale, 672f * scale, datePaint)
-        }
 
         // Center Dauphine Hands AOD (Hour & Minute with Platinum Luminous Contour)
         val hours = currentTime.get(Calendar.HOUR_OF_DAY) % 12
@@ -2231,8 +2200,8 @@ fun DrawScope.drawObsidianAtelierFace(
         }) {
             drawImage(
                 image = hourBmp,
-                dstOffset = IntOffset((477 * scale).toInt(), (245 * scale).toInt()),
-                dstSize = IntSize((46 * scale).toInt(), (290 * scale).toInt())
+                dstOffset = IntOffset((476 * scale).toInt(), (214 * scale).toInt()),
+                dstSize = IntSize((48 * scale).toInt(), (320 * scale).toInt())
             )
         }
 
@@ -2242,20 +2211,23 @@ fun DrawScope.drawObsidianAtelierFace(
         }) {
             drawImage(
                 image = minBmp,
-                dstOffset = IntOffset((481 * scale).toInt(), (145 * scale).toInt()),
-                dstSize = IntSize((38 * scale).toInt(), (390 * scale).toInt())
+                dstOffset = IntOffset((480 * scale).toInt(), (95 * scale).toInt()),
+                dstSize = IntSize((40 * scale).toInt(), (440 * scale).toInt())
             )
         }
+
+        // Small Seconds hand is HIDDEN in AOD!
 
         // Central Hub Cap
         val hubBmp = getBmp(R.drawable.obsidian_hub)
         drawImage(
             image = hubBmp,
-            dstOffset = IntOffset((474 * scale).toInt(), (474 * scale).toInt()),
-            dstSize = IntSize((52 * scale).toInt(), (52 * scale).toInt())
+            dstOffset = IntOffset((470 * scale).toInt(), (470 * scale).toInt()),
+            dstSize = IntSize((60 * scale).toInt(), (60 * scale).toInt())
         )
     }
 }
+
 
 
 // ---------------------------------------------------------

@@ -11,7 +11,7 @@ import kotlin.math.*
 val refinedResources = layout.buildDirectory.dir("generated/refinement/res")
 val generateRefinedDial = tasks.register("generateRefinedDial") {
     val originals = file("src/main/res/drawable")
-    val numeralFont = rootProject.file("tools/CormorantGaramond-SemiBold.ttf")
+    val numeralFont = file("src/main/res/font/ref_serif.ttf")
     val functionalFont = file("src/main/res/font/functional_medium.ttf")
     val moonSourceFile = rootProject.file("tools/moon-source.jpg")
     val generatedDirectory = refinedResources.get().asFile
@@ -24,7 +24,7 @@ val generateRefinedDial = tasks.register("generateRefinedDial") {
     outputs.dir(generatedDirectory)
     doLast {
         val output = generatedDirectory.resolve("drawable").apply { mkdirs() }
-        val font = Font.createFont(Font.TRUETYPE_FONT, numeralFont).deriveFont(115f)
+        val font = Font.createFont(Font.TRUETYPE_FONT, numeralFont).deriveFont(Font.PLAIN, 106f)
         val functional = Font.createFont(Font.TRUETYPE_FONT, functionalFont)
         val context = java.awt.font.FontRenderContext(null, true, true)
         for ((text, size, width) in listOf(Triple("99,999", 68f, 340), Triple("100%", 52f, 166),
@@ -47,19 +47,19 @@ val generateRefinedDial = tasks.register("generateRefinedDial") {
                 val glyph = font.createGlyphVector(g.fontRenderContext, hour.toString())
                 val b = glyph.visualBounds
                 val angle = Math.toRadians(hour * 30.0 - 90.0)
-                var radius = if (hour >= 10) 427.0 else 436.0
+                var radius = if (hour >= 10) 418.0 else 432.0
                 var tx: Double
                 var ty: Double
                 while (true) {
                     tx = 500 + cos(angle) * radius - b.centerX
                     ty = 500 + sin(angle) * radius - b.centerY
                     val inside = listOf(b.minX to b.minY, b.minX to b.maxY, b.maxX to b.minY, b.maxX to b.maxY)
-                        .all { (x, y) -> hypot(x + tx - 500, y + ty - 500) <= 464 }
+                        .all { (x, y) -> hypot(x + tx - 500, y + ty - 500) <= 468 }
                     if (inside) break
                     radius -= 1
-                    check(radius > 400) { "Numeral $hour does not fit" }
+                    check(radius > 350) { "Numeral $hour does not fit" }
                 }
-                bounds += java.awt.geom.Rectangle2D.Double(b.x + tx - 8, b.y + ty - 8, b.width + 16, b.height + 16)
+                bounds += java.awt.geom.Rectangle2D.Double(b.x + tx - 6, b.y + ty - 6, b.width + 12, b.height + 12)
                 g.color = Color(0xF1, 0xE6, 0xD2)
                 g.drawGlyphVector(glyph, tx.toFloat(), ty.toFloat())
             }
@@ -207,6 +207,31 @@ val generateRefinedDial = tasks.register("generateRefinedDial") {
             val srcCx = 512.0
             val srcCy = 512.0
 
+            fun sampleBilinear(u: Double, v: Double): Double {
+                if (moonSource == null) return 0.80
+                val w = moonSource.width
+                val h = moonSource.height
+                val x0 = Math.floor(u).toInt().coerceIn(0, w - 1)
+                val y0 = Math.floor(v).toInt().coerceIn(0, h - 1)
+                val x1 = (x0 + 1).coerceIn(0, w - 1)
+                val y1 = (y0 + 1).coerceIn(0, h - 1)
+                val fx = u - Math.floor(u)
+                val fy = v - Math.floor(v)
+                fun lum(rgb: Int): Double {
+                    val r = (rgb shr 16) and 0xFF
+                    val g = (rgb shr 8) and 0xFF
+                    val b = rgb and 0xFF
+                    return (r * 0.299 + g * 0.587 + b * 0.114) / 255.0
+                }
+                val c00 = lum(moonSource.getRGB(x0, y0))
+                val c10 = lum(moonSource.getRGB(x1, y0))
+                val c01 = lum(moonSource.getRGB(x0, y1))
+                val c11 = lum(moonSource.getRGB(x1, y1))
+                val top = c00 * (1 - fx) + c10 * fx
+                val bottom = c01 * (1 - fx) + c11 * fx
+                return top * (1 - fy) + bottom * fy
+            }
+
             for (y in 0 until size) {
                 val dy = y + 0.5 - cy
                 for (x in 0 until size) {
@@ -220,19 +245,8 @@ val generateRefinedDial = tasks.register("generateRefinedDial") {
 
                     val cosIncident = nx * sx + ny * sy + nz * sz
 
-                    // Texture sampling from genuine lunar topography
-                    val texVal: Double
-                    if (moonSource != null) {
-                        val srcX = (srcCx + (dx / R) * srcR).roundToInt().coerceIn(0, srcW - 1)
-                        val srcY = (srcCy + (dy / R) * srcR).roundToInt().coerceIn(0, srcH - 1)
-                        val rgb = moonSource.getRGB(srcX, srcY)
-                        val rC = (rgb shr 16) and 0xFF
-                        val gC = (rgb shr 8) and 0xFF
-                        val bC = rgb and 0xFF
-                        texVal = (rC * 0.299 + gC * 0.587 + bC * 0.114) / 255.0
-                    } else {
-                        texVal = 0.80
-                    }
+                    // Smooth Bilinear Texture sampling from genuine lunar topography
+                    val texVal = sampleBilinear(srcCx + nx * srcR, srcCy + ny * srcR)
 
                     // Contrast boost for crisp craters and maria definition
                     val cTex = ((texVal - 0.5) * (if (isSmall) 1.25 else 1.15) + 0.5).coerceIn(0.0, 1.0)
@@ -296,7 +310,7 @@ val generateRefinedDial = tasks.register("generateRefinedDial") {
             val glyph = font.createGlyphVector(lg.fontRenderContext, hour.toString())
             val b = glyph.visualBounds
             val angle = Math.toRadians(hour * 30.0 - 90.0)
-            val radius = if (hour >= 10) 427.0 else 436.0
+            val radius = if (hour >= 10) 418.0 else 432.0
             val tx = 500 + cos(angle) * radius - b.centerX
             val ty = 500 + sin(angle) * radius - b.centerY
             lunarDialBounds += java.awt.geom.Rectangle2D.Double(b.x + tx - 8, b.y + ty - 8, b.width + 16, b.height + 16)
