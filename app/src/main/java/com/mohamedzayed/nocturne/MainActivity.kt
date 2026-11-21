@@ -6,6 +6,14 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.widget.Toast
+import android.graphics.BitmapFactory
+import android.graphics.Paint
+import android.graphics.Typeface
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntSize
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -193,7 +201,7 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 description = "Ottoman Sage Green heritage dial with engraved calligraphy, small moon phase, and active/AOD modes.",
                 descriptionAr = "التصميم العثماني الأخضر الأصلي مع الزخرفة العثمانية، القمر الصغير، الذكر، والتعقيدات الثلاث.",
                 packageName = "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-                validationToken = "v3Zat+s7oC8HIvVdFuEcTg5BJzfhSDvDSo4aFjyS0W4=:MS4wLjA=",
+                validationToken = "qi0T6EXF0FdOkhRJsXmb48lRzAE3SaI23UenT8esI5U=:MS4wLjA=",
                 apkFilename = "Nocturne-Sage-Push.apk",
                 downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Sage-Push.apk",
                 preview = "preview_sage.png",
@@ -207,7 +215,7 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 description = "Large poetic astronomical moon disc filling the watch display, with luminous dual-contrast hands and minimal AOD dial.",
                 descriptionAr = "قمر سينمائي كبير يملأ 92% من الشاشة بإضاءة ثلاثية الأبعاد دقيقة فلكياً عبر 29 منزلة، مع عقارب بتباين مزدوج، وشاشة AOD سوداء موفرة للطاقة.",
                 packageName = "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-                validationToken = "jGiyZ/qkrXYSsol1DG8HeHpKsNESsIm6Lx77SYjmTcY=:MS4wLjA=",
+                validationToken = "HPFpQGKLbJChYL9qIuOuEIIVBQlAwqPpYBLNcxpttCI=:MS4wLjA=",
                 apkFilename = "Nocturne-Lunar-Push.apk",
                 downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Lunar-Push.apk",
                 preview = "preview_lunar.png",
@@ -221,7 +229,7 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 description = "Imperial Emerald and Gold edition with ornate Ottoman pattern, golden hands, and emerald accents.",
                 descriptionAr = "الإصدار الزمردي والذهبي الإمبراطوري بتعديل بصري واضح وعقارب ذهبية لاختبار وتأكيد التحديث اللاسلكي.",
                 packageName = "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-                validationToken = "R0rZewQOY75gkTO3l/Cl+bz+y9AbZOoMyq1C4022xVI=:MS4wLjA=",
+                validationToken = "BLdGUfpTh6A/OaEFkfWQTseiPb45VPf6B41p/MkzY/s=:MS4wLjA=",
                 apkFilename = "Nocturne-Emerald-Push.apk",
                 downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Emerald-Push.apk",
                 preview = "preview_emerald.png",
@@ -1460,8 +1468,34 @@ fun parseCatalogJson(jsonString: String): List<WatchFaceItem> {
 }
 
 // ---------------------------------------------------------
-// Watch Dial Canvas Drawing
+// Watch Dial Canvas Drawing - Photorealistic Authentic Renderer
 // ---------------------------------------------------------
+
+val lunarMoonResIds = intArrayOf(
+    R.drawable.lunar_moon_00, R.drawable.lunar_moon_01, R.drawable.lunar_moon_02, R.drawable.lunar_moon_03,
+    R.drawable.lunar_moon_04, R.drawable.lunar_moon_05, R.drawable.lunar_moon_06, R.drawable.lunar_moon_07,
+    R.drawable.lunar_moon_08, R.drawable.lunar_moon_09, R.drawable.lunar_moon_10, R.drawable.lunar_moon_11,
+    R.drawable.lunar_moon_12, R.drawable.lunar_moon_13, R.drawable.lunar_moon_14, R.drawable.lunar_moon_15,
+    R.drawable.lunar_moon_16, R.drawable.lunar_moon_17, R.drawable.lunar_moon_18, R.drawable.lunar_moon_19,
+    R.drawable.lunar_moon_20, R.drawable.lunar_moon_21, R.drawable.lunar_moon_22, R.drawable.lunar_moon_23,
+    R.drawable.lunar_moon_24, R.drawable.lunar_moon_25, R.drawable.lunar_moon_26, R.drawable.lunar_moon_27,
+    R.drawable.lunar_moon_28
+)
+
+val refinedMoonResIds = intArrayOf(
+    R.drawable.refined_moon_00, R.drawable.refined_moon_01, R.drawable.refined_moon_02, R.drawable.refined_moon_03,
+    R.drawable.refined_moon_04, R.drawable.refined_moon_05, R.drawable.refined_moon_06, R.drawable.refined_moon_07,
+    R.drawable.refined_moon_08, R.drawable.refined_moon_09, R.drawable.refined_moon_10, R.drawable.refined_moon_11,
+    R.drawable.refined_moon_12, R.drawable.refined_moon_13, R.drawable.refined_moon_14, R.drawable.refined_moon_15,
+    R.drawable.refined_moon_16, R.drawable.refined_moon_17, R.drawable.refined_moon_18, R.drawable.refined_moon_19,
+    R.drawable.refined_moon_20, R.drawable.refined_moon_21, R.drawable.refined_moon_22, R.drawable.refined_moon_23,
+    R.drawable.refined_moon_24, R.drawable.refined_moon_25, R.drawable.refined_moon_26, R.drawable.refined_moon_27,
+    R.drawable.refined_moon_28
+)
+
+val dhikrResIds = intArrayOf(
+    R.drawable.uc_dhikr_0, R.drawable.uc_dhikr_1, R.drawable.uc_dhikr_2, R.drawable.uc_dhikr_3
+)
 
 @Composable
 fun WatchFaceDialCanvas(
@@ -1474,45 +1508,48 @@ fun WatchFaceDialCanvas(
     moonPhaseIndex: Int,
     currentTime: Calendar
 ) {
+    val context = LocalContext.current
+    val bitmapCache = remember { mutableMapOf<Int, ImageBitmap>() }
+
+    fun getBmp(resId: Int): ImageBitmap {
+        return bitmapCache.getOrPut(resId) {
+            BitmapFactory.decodeResource(context.resources, resId).asImageBitmap()
+        }
+    }
+
     Canvas(modifier = Modifier.fillMaxSize()) {
-        val center = Offset(size.width / 2f, size.height / 2f)
-        val radius = size.width / 2f
+        val scale = size.width / 1000f
 
         when (faceId) {
             "lunar_phase" -> {
-                val dialBg = if (displayMode == DisplayMode.AOD) Color(0xFF000000) else Color(0xFF000000)
-                drawCircle(color = dialBg, radius = radius, center = center)
                 drawLunarPhaseFace(
                     displayMode = displayMode,
-                    center = center,
-                    radius = radius,
+                    scale = scale,
                     moonPhaseIndex = moonPhaseIndex,
-                    currentTime = currentTime
+                    currentTime = currentTime,
+                    getBmp = ::getBmp
                 )
             }
             "emerald_nocturne" -> {
-                val dialBg = if (displayMode == DisplayMode.AOD) Color(0xFF000000) else Color(0xFF0A1D13)
-                drawCircle(color = dialBg, radius = radius, center = center)
                 drawEmeraldNocturneFace(
                     displayMode = displayMode,
-                    center = center,
-                    radius = radius,
+                    scale = scale,
                     moonPhaseIndex = moonPhaseIndex,
-                    currentTime = currentTime
+                    currentTime = currentTime,
+                    getBmp = ::getBmp
                 )
             }
             else -> {
-                val dialBg = if (displayMode == DisplayMode.AOD) Color(0xFF000000) else bgColor
-                drawCircle(color = dialBg, radius = radius, center = center)
                 drawSageNocturneFace(
                     displayMode = displayMode,
-                    center = center,
-                    radius = radius,
+                    scale = scale,
+                    bgColor = bgColor,
                     accentColor = accentColor,
                     ornamentType = ornamentType,
                     dialType = dialType,
                     moonPhaseIndex = moonPhaseIndex,
-                    currentTime = currentTime
+                    currentTime = currentTime,
+                    getBmp = ::getBmp
                 )
             }
         }
@@ -1521,459 +1558,491 @@ fun WatchFaceDialCanvas(
 
 fun DrawScope.drawSageNocturneFace(
     displayMode: DisplayMode,
-    center: Offset,
-    radius: Float,
+    scale: Float,
+    bgColor: Color,
     accentColor: Color,
     ornamentType: String,
     dialType: String,
     moonPhaseIndex: Int,
-    currentTime: Calendar
+    currentTime: Calendar,
+    getBmp: (Int) -> ImageBitmap
 ) {
     val isAod = displayMode == DisplayMode.AOD
 
+    // 1. Background
+    val dialBg = if (isAod) Color(0xFF000000) else bgColor
+    drawCircle(color = dialBg, radius = 500f * scale, center = Offset(500f * scale, 500f * scale))
+
+    // 2. Ottoman Arabesque on Left Half (Active mode only)
     if (!isAod && ornamentType != "none") {
-        drawOttomanArabesque(center, radius, accentColor, ornamentType)
+        val ornRes = when (ornamentType) {
+            "minimal" -> R.drawable.visible_0_orn_0
+            "ornate" -> R.drawable.visible_0_orn_2
+            else -> R.drawable.visible_0_orn_1
+        }
+        val ornBmp = getBmp(ornRes)
+        drawImage(
+            image = ornBmp,
+            dstOffset = IntOffset(0, 0),
+            dstSize = IntSize((1000 * scale).toInt(), (1000 * scale).toInt())
+        )
     }
 
-    drawDialNumeralsAndTicks(center, radius, isAod, dialType, isGold = false)
+    // 3. Dial Numerals and Minute Track
+    val dialRes = if (isAod) {
+        R.drawable.refined_0_dial_0_aod
+    } else {
+        when (dialType) {
+            "cardinal" -> R.drawable.refined_0_dial_1
+            "markers" -> R.drawable.refined_0_dial_2
+            else -> R.drawable.refined_0_dial_0
+        }
+    }
+    val dialBmp = getBmp(dialRes)
+    drawImage(
+        image = dialBmp,
+        dstOffset = IntOffset(0, 0),
+        dstSize = IntSize((1000 * scale).toInt(), (1000 * scale).toInt())
+    )
 
+    // 4. Subdial Rings
+    val ringBmp = getBmp(R.drawable.uc_0_ring)
+    val ringAlpha = if (isAod) 0.5f else 1.0f
+
+    // Left Ring (Battery)
+    drawImage(
+        image = ringBmp,
+        dstOffset = IntOffset((171 * scale).toInt(), (391 * scale).toInt()),
+        dstSize = IntSize((228 * scale).toInt(), (228 * scale).toInt()),
+        alpha = ringAlpha
+    )
+
+    // Right Ring (Calendar)
+    drawImage(
+        image = ringBmp,
+        dstOffset = IntOffset((601 * scale).toInt(), (391 * scale).toInt()),
+        dstSize = IntSize((228 * scale).toInt(), (228 * scale).toInt()),
+        alpha = ringAlpha
+    )
+
+    // Subdial Complications Content
     if (!isAod) {
-        val leftCenter = Offset(center.x - radius * 0.44f, center.y)
-        val ringR = radius * 0.17f
-        drawCircle(color = Color(0x33FFFFFF), radius = ringR, center = leftCenter, style = Stroke(width = 2.5f))
-        drawCircle(color = accentColor.copy(alpha = 0.5f), radius = ringR - 2f, center = leftCenter, style = Stroke(width = 1.5f))
-
-        val rightCenter = Offset(center.x + radius * 0.44f, center.y)
-        drawCircle(color = Color(0x33FFFFFF), radius = ringR, center = rightCenter, style = Stroke(width = 2.5f))
-        drawCircle(color = accentColor.copy(alpha = 0.5f), radius = ringR - 2f, center = rightCenter, style = Stroke(width = 1.5f))
+        // Battery Icon inside left subdial
+        val batBmp = getBmp(R.drawable.refined_battery)
+        val batW = (65 * scale).toInt()
+        val batH = (45 * scale).toInt()
+        val batX = (285 * scale - batW / 2).toInt()
+        val batY = (420 * scale).toInt()
+        drawImage(
+            image = batBmp,
+            dstOffset = IntOffset(batX, batY),
+            dstSize = IntSize(batW, batH)
+        )
 
         drawContext.canvas.nativeCanvas.apply {
-            val paint = android.graphics.Paint().apply {
+            val numPaint = Paint().apply {
                 color = android.graphics.Color.parseColor("#FFF0D8")
-                textAlign = android.graphics.Paint.Align.CENTER
-                textSize = radius * 0.10f
+                textAlign = Paint.Align.CENTER
+                textSize = 34f * scale
                 isAntiAlias = true
-                typeface = android.graphics.Typeface.SANS_SERIF
+                typeface = Typeface.DEFAULT_BOLD
             }
-            drawText("82%", leftCenter.x, leftCenter.y + radius * 0.035f, paint)
-
-            val day = currentTime.get(Calendar.DAY_OF_MONTH).toString()
-            drawText(day, rightCenter.x, rightCenter.y + radius * 0.035f, paint)
-
-            paint.textSize = radius * 0.065f
-            paint.color = android.graphics.Color.parseColor("#A8B5A2")
-            drawText("BATTERY", leftCenter.x, leftCenter.y + radius * 0.11f, paint)
-            drawText("NOV", rightCenter.x, rightCenter.y + radius * 0.11f, paint)
-        }
-    }
-
-    if (!isAod) {
-        val moonCenter = Offset(center.x, center.y - radius * 0.52f)
-        val moonRadius = radius * 0.18f
-        drawMoonSphere(moonCenter, moonRadius, moonPhaseIndex, isSmall = true)
-    }
-
-    drawContext.canvas.nativeCanvas.apply {
-        val dhikrPaint = android.graphics.Paint().apply {
-            color = if (isAod) android.graphics.Color.parseColor("#A0AEC0") else android.graphics.Color.parseColor("#F1E6D2")
-            textAlign = android.graphics.Paint.Align.CENTER
-            textSize = radius * 0.09f
-            isAntiAlias = true
-            alpha = if (isAod) 170 else 240
-            typeface = android.graphics.Typeface.SERIF
-        }
-        val dhikrText = when ((currentTime.get(Calendar.MINUTE) % 4)) {
-            0 -> "سُبْحَانَ اللَّهِ"
-            1 -> "الْحَمْدُ لِلَّهِ"
-            2 -> "لَا إِلَهَ إِلَّا اللَّهُ"
-            else -> "اللَّهُ أَكْبَرُ"
-        }
-        drawText(dhikrText, center.x, center.y - radius * 0.18f, dhikrPaint)
-    }
-
-    drawAnalogHands(center, radius, currentTime, isAod = isAod, handStyle = "sage", accentColor = accentColor)
-}
-
-fun DrawScope.drawEmeraldNocturneFace(
-    displayMode: DisplayMode,
-    center: Offset,
-    radius: Float,
-    moonPhaseIndex: Int,
-    currentTime: Calendar
-) {
-    val isAod = displayMode == DisplayMode.AOD
-
-    if (!isAod) {
-        drawOttomanArabesque(center, radius, Color(0xFFD4AF37), "ornate")
-    }
-
-    drawDialNumeralsAndTicks(center, radius, isAod, "full", isGold = true)
-
-    if (!isAod) {
-        val leftCenter = Offset(center.x - radius * 0.44f, center.y)
-        val ringR = radius * 0.17f
-        drawCircle(color = Color(0x66D4AF37), radius = ringR, center = leftCenter, style = Stroke(width = 2.5f))
-
-        val rightCenter = Offset(center.x + radius * 0.44f, center.y)
-        drawCircle(color = Color(0x66D4AF37), radius = ringR, center = rightCenter, style = Stroke(width = 2.5f))
-
-        drawContext.canvas.nativeCanvas.apply {
-            val paint = android.graphics.Paint().apply {
-                color = android.graphics.Color.parseColor("#F7E5A9")
-                textAlign = android.graphics.Paint.Align.CENTER
-                textSize = radius * 0.10f
+            val labelPaint = Paint().apply {
+                color = android.graphics.Color.parseColor("#A8B5A2")
+                textAlign = Paint.Align.CENTER
+                textSize = 20f * scale
                 isAntiAlias = true
-                typeface = android.graphics.Typeface.SANS_SERIF
+                typeface = Typeface.DEFAULT_BOLD
+                letterSpacing = 0.08f
             }
-            drawText("85%", leftCenter.x, leftCenter.y + radius * 0.035f, paint)
+
+            // Battery Percentage & Label
+            drawText("82%", 285f * scale, 502f * scale, numPaint)
+            drawText("BATTERY", 285f * scale, 538f * scale, labelPaint)
+
+            // Date & Month
             val day = currentTime.get(Calendar.DAY_OF_MONTH).toString()
-            drawText(day, rightCenter.x, rightCenter.y + radius * 0.035f, paint)
+            val monthNames = arrayOf("JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "AUG", "SEP", "OCT", "NOV", "DEC")
+            val month = monthNames[currentTime.get(Calendar.MONTH)]
 
-            paint.textSize = radius * 0.065f
-            paint.color = android.graphics.Color.parseColor("#D4AF37")
-            drawText("BATTERY", leftCenter.x, leftCenter.y + radius * 0.11f, paint)
-            drawText("EMERALD", rightCenter.x, rightCenter.y + radius * 0.11f, paint)
+            drawText(month, 715f * scale, 455f * scale, labelPaint)
+            drawText(day, 715f * scale, 505f * scale, numPaint)
+
+            // Steps Indicator at Bottom
+            drawText("7,420", 500f * scale, 710f * scale, numPaint)
+            drawText("STEPS", 500f * scale, 742f * scale, labelPaint)
         }
+
+        // Steps Arc
+        val arcCenter = Offset(500f * scale, 700f * scale)
+        val arcRadius = 145f * scale
+        drawArc(
+            color = Color(0x33A8B5A2),
+            startAngle = 140f,
+            sweepAngle = 260f,
+            useCenter = false,
+            topLeft = Offset(arcCenter.x - arcRadius, arcCenter.y - arcRadius),
+            size = Size(arcRadius * 2, arcRadius * 2),
+            style = Stroke(width = 4f * scale, cap = StrokeCap.Round)
+        )
+        drawArc(
+            color = Color(0xFF8FA89B),
+            startAngle = 140f,
+            sweepAngle = 190f,
+            useCenter = false,
+            topLeft = Offset(arcCenter.x - arcRadius, arcCenter.y - arcRadius),
+            size = Size(arcRadius * 2, arcRadius * 2),
+            style = Stroke(width = 4f * scale, cap = StrokeCap.Round)
+        )
     }
 
+    // 5. Dhikr Calligraphy (Active and subtle in AOD)
+    val dhikrIndex = (currentTime.get(Calendar.MINUTE) / 15) % 4
+    val dhikrBmp = getBmp(dhikrResIds[dhikrIndex])
+    drawImage(
+        image = dhikrBmp,
+        dstOffset = IntOffset((60 * scale).toInt(), (320 * scale).toInt()),
+        dstSize = IntSize((880 * scale).toInt(), (144 * scale).toInt()),
+        alpha = if (isAod) 0.65f else 0.95f
+    )
+
+    // 6. Photorealistic Small Moon at Top (Active mode only)
     if (!isAod) {
-        val moonCenter = Offset(center.x, center.y - radius * 0.52f)
-        val moonRadius = radius * 0.18f
-        drawMoonSphere(moonCenter, moonRadius, moonPhaseIndex, isSmall = true)
+        val safeMoonIndex = moonPhaseIndex.coerceIn(0, 28)
+        val moonBmp = getBmp(refinedMoonResIds[safeMoonIndex])
+        drawImage(
+            image = moonBmp,
+            dstOffset = IntOffset((392 * scale).toInt(), (122 * scale).toInt()),
+            dstSize = IntSize((216 * scale).toInt(), (216 * scale).toInt())
+        )
     }
 
-    drawContext.canvas.nativeCanvas.apply {
-        val dhikrPaint = android.graphics.Paint().apply {
-            color = if (isAod) android.graphics.Color.parseColor("#D4AF37") else android.graphics.Color.parseColor("#F5DEB3")
-            textAlign = android.graphics.Paint.Align.CENTER
-            textSize = radius * 0.09f
-            isAntiAlias = true
-            typeface = android.graphics.Typeface.SERIF
+    // 7. Authentic Skeleton Hands
+    val hours = currentTime.get(Calendar.HOUR_OF_DAY) % 12
+    val minutes = currentTime.get(Calendar.MINUTE)
+    val seconds = currentTime.get(Calendar.SECOND)
+
+    val hourDeg = hours * 30f + minutes * 0.5f
+    val minDeg = minutes * 6f + seconds * 0.1f
+    val secDeg = seconds * 6f
+
+    val centerDial = Offset(500f * scale, 500f * scale)
+
+    // Hour Hand (pivot at 500, 500)
+    val hourRes = if (isAod) R.drawable.refined_0_hour_aod else R.drawable.refined_0_hour
+    val hourBmp = getBmp(hourRes)
+    withTransform({
+        rotate(degrees = hourDeg, pivot = centerDial)
+    }) {
+        drawImage(
+            image = hourBmp,
+            dstOffset = IntOffset((480 * scale).toInt(), (250 * scale).toInt()),
+            dstSize = IntSize((40 * scale).toInt(), (280 * scale).toInt())
+        )
+    }
+
+    // Minute Hand (pivot at 500, 500)
+    val minRes = if (isAod) R.drawable.refined_0_minute_aod else R.drawable.refined_0_minute
+    val minBmp = getBmp(minRes)
+    withTransform({
+        rotate(degrees = minDeg, pivot = centerDial)
+    }) {
+        drawImage(
+            image = minBmp,
+            dstOffset = IntOffset((483 * scale).toInt(), (150 * scale).toInt()),
+            dstSize = IntSize((34 * scale).toInt(), (380 * scale).toInt())
+        )
+    }
+
+    // Seconds Hand (Active only)
+    if (!isAod) {
+        val secBmp = getBmp(R.drawable.uc_0_second)
+        withTransform({
+            rotate(degrees = secDeg, pivot = centerDial)
+        }) {
+            drawImage(
+                image = secBmp,
+                dstOffset = IntOffset((492 * scale).toInt(), (140 * scale).toInt()),
+                dstSize = IntSize((16 * scale).toInt(), (395 * scale).toInt())
+            )
         }
-        drawText("سُبْحَانَ اللَّهِ", center.x, center.y - radius * 0.18f, dhikrPaint)
     }
 
-    drawAnalogHands(center, radius, currentTime, isAod = isAod, handStyle = "gold", accentColor = Color(0xFFD4AF37))
+    // Center Hub
+    val hubBmp = getBmp(R.drawable.uc_0_hub)
+    drawImage(
+        image = hubBmp,
+        dstOffset = IntOffset((477 * scale).toInt(), (477 * scale).toInt()),
+        dstSize = IntSize((46 * scale).toInt(), (46 * scale).toInt())
+    )
 }
 
 fun DrawScope.drawLunarPhaseFace(
     displayMode: DisplayMode,
-    center: Offset,
-    radius: Float,
+    scale: Float,
     moonPhaseIndex: Int,
-    currentTime: Calendar
+    currentTime: Calendar,
+    getBmp: (Int) -> ImageBitmap
 ) {
     val isAod = displayMode == DisplayMode.AOD
+    val centerDial = Offset(500f * scale, 500f * scale)
+
+    // 1. Pure AMOLED Black Background
+    drawCircle(color = Color(0xFF000000), radius = 500f * scale, center = centerDial)
 
     if (!isAod) {
-        val bigMoonRadius = radius * 0.92f
-        drawMoonSphere(center, bigMoonRadius, moonPhaseIndex, isSmall = false)
-        drawAnalogHands(center, radius, currentTime, isAod = false, handStyle = "lunar", accentColor = Color.White)
+        // Active Mode: 92% Screen Diameter Massive Photorealistic Moon
+        val safeMoonIndex = moonPhaseIndex.coerceIn(0, 28)
+        val moonBmp = getBmp(lunarMoonResIds[safeMoonIndex])
+        drawImage(
+            image = moonBmp,
+            dstOffset = IntOffset((40 * scale).toInt(), (40 * scale).toInt()),
+            dstSize = IntSize((920 * scale).toInt(), (920 * scale).toInt())
+        )
+
+        // NO Hour numbers in Active mode! Only Luminous Dual-Contrast Hands:
+        val hours = currentTime.get(Calendar.HOUR_OF_DAY) % 12
+        val minutes = currentTime.get(Calendar.MINUTE)
+        val seconds = currentTime.get(Calendar.SECOND)
+
+        val hourDeg = hours * 30f + minutes * 0.5f
+        val minDeg = minutes * 6f + seconds * 0.1f
+        val secDeg = seconds * 6f
+
+        // Hour Hand
+        val hourBmp = getBmp(R.drawable.lunar_hour)
+        withTransform({
+            rotate(degrees = hourDeg, pivot = centerDial)
+        }) {
+            drawImage(
+                image = hourBmp,
+                dstOffset = IntOffset((480 * scale).toInt(), (250 * scale).toInt()),
+                dstSize = IntSize((40 * scale).toInt(), (280 * scale).toInt())
+            )
+        }
+
+        // Minute Hand
+        val minBmp = getBmp(R.drawable.lunar_minute)
+        withTransform({
+            rotate(degrees = minDeg, pivot = centerDial)
+        }) {
+            drawImage(
+                image = minBmp,
+                dstOffset = IntOffset((483 * scale).toInt(), (150 * scale).toInt()),
+                dstSize = IntSize((34 * scale).toInt(), (380 * scale).toInt())
+            )
+        }
+
+        // Second Hand (with red accented tip)
+        val secBmp = getBmp(R.drawable.lunar_second)
+        withTransform({
+            rotate(degrees = secDeg, pivot = centerDial)
+        }) {
+            drawImage(
+                image = secBmp,
+                dstOffset = IntOffset((492 * scale).toInt(), (140 * scale).toInt()),
+                dstSize = IntSize((16 * scale).toInt(), (395 * scale).toInt())
+            )
+        }
+
+        // Center Hub
+        val hubBmp = getBmp(R.drawable.lunar_hub)
+        drawImage(
+            image = hubBmp,
+            dstOffset = IntOffset((483 * scale).toInt(), (483 * scale).toInt()),
+            dstSize = IntSize((34 * scale).toInt(), (34 * scale).toInt())
+        )
     } else {
-        drawDialNumeralsAndTicks(center, radius, isAod = true, dialType = "full", isGold = false)
-        drawAnalogHands(center, radius, currentTime, isAod = true, handStyle = "lunar", accentColor = Color.White)
-    }
-}
-
-fun DrawScope.drawMoonSphere(
-    center: Offset,
-    radius: Float,
-    phaseIndex: Int,
-    isSmall: Boolean
-) {
-    val t = phaseIndex / 28.0
-
-    val earthshineAlpha = if (isSmall) 0.85f else 0.75f
-    drawCircle(
-        color = Color(0xFF1E2228).copy(alpha = earthshineAlpha),
-        radius = radius,
-        center = center
-    )
-
-    drawCircle(
-        color = Color(0xFF94A3B8).copy(alpha = 0.28f),
-        radius = radius - 0.5f,
-        center = center,
-        style = Stroke(width = if (isSmall) 1.5f else 2.2f)
-    )
-
-    val litPath = Path()
-    val rect = androidx.compose.ui.geometry.Rect(
-        center.x - radius, center.y - radius,
-        center.x + radius, center.y + radius
-    )
-
-    if (phaseIndex == 14) {
-        drawCircle(
-            brush = Brush.radialGradient(
-                colors = listOf(Color(0xFFFFF9EE), Color(0xFFE2D8C3), Color(0xFFC7BDAA)),
-                center = center,
-                radius = radius
-            ),
-            radius = radius,
-            center = center
+        // AOD Mode: Pure AMOLED Black, Moon Completely Gone!
+        // Elegant Moonlight Dial Markers & Cormorant Garamond Numerals:
+        val dialBmp = getBmp(R.drawable.lunar_dial_aod)
+        drawImage(
+            image = dialBmp,
+            dstOffset = IntOffset(0, 0),
+            dstSize = IntSize((1000 * scale).toInt(), (1000 * scale).toInt())
         )
-    } else if (phaseIndex in 1..13) {
-        litPath.arcTo(rect, -90f, 180f, false)
-        val termX = cos(2.0 * Math.PI * t).toFloat()
-        val termRect = androidx.compose.ui.geometry.Rect(
-            center.x - abs(termX) * radius, center.y - radius,
-            center.x + abs(termX) * radius, center.y + radius
-        )
-        if (termX <= 0) {
-            litPath.arcTo(termRect, 90f, 180f, false)
-        } else {
-            litPath.arcTo(termRect, 90f, -180f, false)
-        }
-        litPath.close()
 
-        drawPath(
-            path = litPath,
-            brush = Brush.horizontalGradient(
-                colors = listOf(Color(0xFFDDD2BC), Color(0xFFFFF7E6)),
-                startX = center.x - radius,
-                endX = center.x + radius
+        val hours = currentTime.get(Calendar.HOUR_OF_DAY) % 12
+        val minutes = currentTime.get(Calendar.MINUTE)
+
+        val hourDeg = hours * 30f + minutes * 0.5f
+        val minDeg = minutes * 6f
+
+        // Hour Hand AOD
+        val hourBmp = getBmp(R.drawable.lunar_hour_aod)
+        withTransform({
+            rotate(degrees = hourDeg, pivot = centerDial)
+        }) {
+            drawImage(
+                image = hourBmp,
+                dstOffset = IntOffset((480 * scale).toInt(), (250 * scale).toInt()),
+                dstSize = IntSize((40 * scale).toInt(), (280 * scale).toInt())
             )
-        )
-    } else if (phaseIndex in 15..27) {
-        litPath.arcTo(rect, 90f, 180f, false)
-        val termX = cos(2.0 * Math.PI * t).toFloat()
-        val termRect = androidx.compose.ui.geometry.Rect(
-            center.x - abs(termX) * radius, center.y - radius,
-            center.x + abs(termX) * radius, center.y + radius
-        )
-        if (termX <= 0) {
-            litPath.arcTo(termRect, -90f, 180f, false)
-        } else {
-            litPath.arcTo(termRect, -90f, -180f, false)
         }
-        litPath.close()
 
-        drawPath(
-            path = litPath,
-            brush = Brush.horizontalGradient(
-                colors = listOf(Color(0xFFFFF7E6), Color(0xFFDDD2BC)),
-                startX = center.x - radius,
-                endX = center.x + radius
+        // Minute Hand AOD
+        val minBmp = getBmp(R.drawable.lunar_minute_aod)
+        withTransform({
+            rotate(degrees = minDeg, pivot = centerDial)
+        }) {
+            drawImage(
+                image = minBmp,
+                dstOffset = IntOffset((483 * scale).toInt(), (150 * scale).toInt()),
+                dstSize = IntSize((34 * scale).toInt(), (380 * scale).toInt())
             )
-        )
-    }
-
-    val mariaColor = Color(0x221B2026)
-    drawCircle(color = mariaColor, radius = radius * 0.32f, center = Offset(center.x - radius * 0.15f, center.y - radius * 0.12f))
-    drawCircle(color = mariaColor, radius = radius * 0.22f, center = Offset(center.x + radius * 0.18f, center.y - radius * 0.20f))
-    drawCircle(color = mariaColor, radius = radius * 0.26f, center = Offset(center.x + radius * 0.25f, center.y + radius * 0.10f))
-    drawCircle(color = mariaColor, radius = radius * 0.35f, center = Offset(center.x - radius * 0.20f, center.y + radius * 0.22f))
-}
-
-fun DrawScope.drawOttomanArabesque(
-    center: Offset,
-    radius: Float,
-    accentColor: Color,
-    ornamentType: String
-) {
-    val alphaFactor = when (ornamentType) {
-        "minimal" -> 0.30f
-        "ornate" -> 0.75f
-        else -> 0.50f
-    }
-    val path = Path()
-
-    path.moveTo(center.x - radius * 0.90f, center.y)
-    path.cubicTo(
-        center.x - radius * 0.85f, center.y - radius * 0.65f,
-        center.x - radius * 0.35f, center.y - radius * 0.75f,
-        center.x - radius * 0.10f, center.y - radius * 0.45f
-    )
-    path.cubicTo(
-        center.x - radius * 0.05f, center.y - radius * 0.25f,
-        center.x - radius * 0.40f, center.y - radius * 0.10f,
-        center.x - radius * 0.65f, center.y
-    )
-    path.cubicTo(
-        center.x - radius * 0.40f, center.y + radius * 0.10f,
-        center.x - radius * 0.05f, center.y + radius * 0.25f,
-        center.x - radius * 0.10f, center.y + radius * 0.45f
-    )
-    path.cubicTo(
-        center.x - radius * 0.35f, center.y + radius * 0.75f,
-        center.x - radius * 0.85f, center.y + radius * 0.65f,
-        center.x - radius * 0.90f, center.y
-    )
-
-    drawPath(
-        path = path,
-        color = accentColor.copy(alpha = alphaFactor * 0.65f),
-        style = Stroke(width = 2.5f, cap = StrokeCap.Round)
-    )
-
-    val innerPath = Path()
-    innerPath.moveTo(center.x - radius * 0.75f, center.y)
-    innerPath.cubicTo(
-        center.x - radius * 0.65f, center.y - radius * 0.40f,
-        center.x - radius * 0.30f, center.y - radius * 0.35f,
-        center.x - radius * 0.20f, center.y
-    )
-    innerPath.cubicTo(
-        center.x - radius * 0.30f, center.y + radius * 0.35f,
-        center.x - radius * 0.65f, center.y + radius * 0.40f,
-        center.x - radius * 0.75f, center.y
-    )
-
-    drawPath(
-        path = innerPath,
-        color = accentColor.copy(alpha = alphaFactor * 0.45f),
-        style = Stroke(width = 1.6f, cap = StrokeCap.Round)
-    )
-}
-
-fun DrawScope.drawDialNumeralsAndTicks(
-    center: Offset,
-    radius: Float,
-    isAod: Boolean,
-    dialType: String,
-    isGold: Boolean
-) {
-    val paint = android.graphics.Paint().apply {
-        color = if (isGold) {
-            if (isAod) android.graphics.Color.parseColor("#E5C158") else android.graphics.Color.parseColor("#F7E5A9")
-        } else {
-            if (isAod) android.graphics.Color.parseColor("#E2E8F0") else android.graphics.Color.parseColor("#F1E6D2")
         }
-        textAlign = android.graphics.Paint.Align.CENTER
-        textSize = radius * 0.14f
-        isAntiAlias = true
-        alpha = if (isAod) 200 else 255
-        typeface = android.graphics.Typeface.SERIF
-    }
 
-    if (dialType != "markers") {
-        for (hour in 1..12) {
-            if (dialType == "cardinal" && (hour % 3 != 0)) continue
+        // Second Hand is HIDDEN in AOD!
 
-            val angleRad = Math.toRadians((hour * 30.0 - 90.0)).toFloat()
-            val numeralRadius = radius * 0.84f
-            val x = center.x + cos(angleRad) * numeralRadius
-            val y = center.y + sin(angleRad) * numeralRadius + (paint.textSize / 3f)
-            drawContext.canvas.nativeCanvas.drawText(hour.toString(), x, y, paint)
-        }
-    }
-
-    for (minute in 0 until 60) {
-        val isMajor = minute % 5 == 0
-        val angleRad = Math.toRadians((minute * 6.0 - 90.0)).toFloat()
-        val endR = radius * 0.96f
-        val startR = if (isMajor) radius * 0.90f else radius * 0.93f
-
-        val start = Offset(center.x + cos(angleRad) * startR, center.y + sin(angleRad) * startR)
-        val end = Offset(center.x + cos(angleRad) * endR, center.y + sin(angleRad) * endR)
-
-        val strokeColor = if (isGold) {
-            if (isMajor) Color(0xFFD4AF37) else Color(0x77D4AF37)
-        } else {
-            if (isMajor) {
-                if (isAod) Color(0xBBE2E8F0) else Color(0xEEF1E6D2)
-            } else {
-                if (isAod) Color(0x44869BA5) else Color(0x88869BA5)
-            }
-        }
-        drawLine(
-            color = strokeColor,
-            start = start,
-            end = end,
-            strokeWidth = if (isMajor) 2.5f else 1.2f,
-            cap = StrokeCap.Round
+        // Center Hub
+        val hubBmp = getBmp(R.drawable.lunar_hub)
+        drawImage(
+            image = hubBmp,
+            dstOffset = IntOffset((483 * scale).toInt(), (483 * scale).toInt()),
+            dstSize = IntSize((34 * scale).toInt(), (34 * scale).toInt())
         )
     }
 }
 
-fun DrawScope.drawAnalogHands(
-    center: Offset,
-    radius: Float,
-    time: Calendar,
-    isAod: Boolean,
-    handStyle: String,
-    accentColor: Color
+fun DrawScope.drawEmeraldNocturneFace(
+    displayMode: DisplayMode,
+    scale: Float,
+    moonPhaseIndex: Int,
+    currentTime: Calendar,
+    getBmp: (Int) -> ImageBitmap
 ) {
-    val hours = time.get(Calendar.HOUR_OF_DAY) % 12
-    val minutes = time.get(Calendar.MINUTE)
-    val seconds = time.get(Calendar.SECOND)
+    val isAod = displayMode == DisplayMode.AOD
+    val centerDial = Offset(500f * scale, 500f * scale)
 
-    val hourAngle = Math.toRadians((hours * 30.0 + minutes * 0.5 - 90.0)).toFloat()
-    val minuteAngle = Math.toRadians((minutes * 6.0 + seconds * 0.1 - 90.0)).toFloat()
-    val secondAngle = Math.toRadians((seconds * 6.0 - 90.0)).toFloat()
+    // Background
+    val dialBg = if (isAod) Color(0xFF000000) else Color(0xFF0A1D13)
+    drawCircle(color = dialBg, radius = 500f * scale, center = centerDial)
 
-    val hourLen = radius * 0.52f
-    val minuteLen = radius * 0.74f
-    val secondLen = radius * 0.82f
+    // Ottoman Arabesque (Emerald Golden)
+    if (!isAod) {
+        val ornBmp = getBmp(R.drawable.visible_3_orn_1)
+        drawImage(
+            image = ornBmp,
+            dstOffset = IntOffset(0, 0),
+            dstSize = IntSize((1000 * scale).toInt(), (1000 * scale).toInt())
+        )
+    }
 
-    val hourTip = Offset(center.x + cos(hourAngle) * hourLen, center.y + sin(hourAngle) * hourLen)
-    val hourTail = Offset(center.x - cos(hourAngle) * (hourLen * 0.18f), center.y - sin(hourAngle) * (hourLen * 0.18f))
+    // Dial Numerals & Markers (Emerald Gold)
+    val dialRes = if (isAod) R.drawable.refined_3_dial_0_aod else R.drawable.refined_3_dial_0
+    val dialBmp = getBmp(dialRes)
+    drawImage(
+        image = dialBmp,
+        dstOffset = IntOffset(0, 0),
+        dstSize = IntSize((1000 * scale).toInt(), (1000 * scale).toInt())
+    )
 
-    val minTip = Offset(center.x + cos(minuteAngle) * minuteLen, center.y + sin(minuteAngle) * minuteLen)
-    val minTail = Offset(center.x - cos(minuteAngle) * (minuteLen * 0.15f), center.y - sin(minuteAngle) * (minuteLen * 0.15f))
+    // Subdial Rings
+    val ringBmp = getBmp(R.drawable.uc_3_ring)
+    val ringAlpha = if (isAod) 0.5f else 1.0f
+    drawImage(
+        image = ringBmp,
+        dstOffset = IntOffset((171 * scale).toInt(), (391 * scale).toInt()),
+        dstSize = IntSize((228 * scale).toInt(), (228 * scale).toInt()),
+        alpha = ringAlpha
+    )
+    drawImage(
+        image = ringBmp,
+        dstOffset = IntOffset((601 * scale).toInt(), (391 * scale).toInt()),
+        dstSize = IntSize((228 * scale).toInt(), (228 * scale).toInt()),
+        alpha = ringAlpha
+    )
 
-    when (handStyle) {
-        "lunar" -> {
-            drawLine(color = Color(0xFF15181D), start = hourTail, end = hourTip, strokeWidth = 9.0f, cap = StrokeCap.Round)
-            drawLine(color = if (isAod) Color(0xFFE2E8F0) else Color(0xFFF8FAFC), start = hourTail, end = hourTip, strokeWidth = 5.0f, cap = StrokeCap.Round)
-
-            drawLine(color = Color(0xFF15181D), start = minTail, end = minTip, strokeWidth = 8.0f, cap = StrokeCap.Round)
-            drawLine(color = if (isAod) Color(0xFFE2E8F0) else Color(0xFFF8FAFC), start = minTail, end = minTip, strokeWidth = 4.5f, cap = StrokeCap.Round)
-
-            if (!isAod) {
-                val secTip = Offset(center.x + cos(secondAngle) * secondLen, center.y + sin(secondAngle) * secondLen)
-                val secTail = Offset(center.x - cos(secondAngle) * (secondLen * 0.22f), center.y - sin(secondAngle) * (secondLen * 0.22f))
-                drawLine(color = Color(0xFFFFFFFF), start = secTail, end = secTip, strokeWidth = 2.0f, cap = StrokeCap.Round)
-                val redTipStart = Offset(center.x + cos(secondAngle) * (secondLen * 0.75f), center.y + sin(secondAngle) * (secondLen * 0.75f))
-                drawLine(color = Color(0xFFE53935), start = redTipStart, end = secTip, strokeWidth = 2.5f, cap = StrokeCap.Round)
-
-                drawCircle(color = Color(0xFF15181D), radius = 6.0f, center = center)
-                drawCircle(color = Color(0xFFE53935), radius = 3.5f, center = center)
-            } else {
-                drawCircle(color = Color(0xFFE2E8F0), radius = 4.0f, center = center)
+    if (!isAod) {
+        drawContext.canvas.nativeCanvas.apply {
+            val numPaint = Paint().apply {
+                color = android.graphics.Color.parseColor("#F7E5A9")
+                textAlign = Paint.Align.CENTER
+                textSize = 34f * scale
+                isAntiAlias = true
+                typeface = Typeface.DEFAULT_BOLD
             }
+            val labelPaint = Paint().apply {
+                color = android.graphics.Color.parseColor("#D4AF37")
+                textAlign = Paint.Align.CENTER
+                textSize = 20f * scale
+                isAntiAlias = true
+                typeface = Typeface.DEFAULT_BOLD
+                letterSpacing = 0.08f
+            }
+
+            drawText("85%", 285f * scale, 502f * scale, numPaint)
+            drawText("BATTERY", 285f * scale, 538f * scale, labelPaint)
+
+            val day = currentTime.get(Calendar.DAY_OF_MONTH).toString()
+            drawText("EMERALD", 715f * scale, 455f * scale, labelPaint)
+            drawText(day, 715f * scale, 505f * scale, numPaint)
         }
-        "gold" -> {
-            val handGold = if (isAod) Color(0xFFE5C158) else Color(0xFFD4AF37)
 
-            drawLine(color = handGold, start = hourTail, end = hourTip, strokeWidth = 6.0f, cap = StrokeCap.Round)
-            drawLine(color = Color(0xFF000000), start = Offset(center.x + cos(hourAngle) * (hourLen * 0.25f), center.y + sin(hourAngle) * (hourLen * 0.25f)), end = Offset(center.x + cos(hourAngle) * (hourLen * 0.78f), center.y + sin(hourAngle) * (hourLen * 0.78f)), strokeWidth = 2.2f, cap = StrokeCap.Round)
+        // Small Moon
+        val safeMoonIndex = moonPhaseIndex.coerceIn(0, 28)
+        val moonBmp = getBmp(refinedMoonResIds[safeMoonIndex])
+        drawImage(
+            image = moonBmp,
+            dstOffset = IntOffset((392 * scale).toInt(), (122 * scale).toInt()),
+            dstSize = IntSize((216 * scale).toInt(), (216 * scale).toInt())
+        )
+    }
 
-            drawLine(color = handGold, start = minTail, end = minTip, strokeWidth = 5.2f, cap = StrokeCap.Round)
-            drawLine(color = Color(0xFF000000), start = Offset(center.x + cos(minuteAngle) * (minuteLen * 0.20f), center.y + sin(minuteAngle) * (minuteLen * 0.20f)), end = Offset(center.x + cos(minuteAngle) * (minuteLen * 0.85f), center.y + sin(minuteAngle) * (minuteLen * 0.85f)), strokeWidth = 2.0f, cap = StrokeCap.Round)
+    // Hands
+    val hours = currentTime.get(Calendar.HOUR_OF_DAY) % 12
+    val minutes = currentTime.get(Calendar.MINUTE)
+    val seconds = currentTime.get(Calendar.SECOND)
 
-            if (!isAod) {
-                val secTip = Offset(center.x + cos(secondAngle) * secondLen, center.y + sin(secondAngle) * secondLen)
-                val secTail = Offset(center.x - cos(secondAngle) * (secondLen * 0.22f), center.y - sin(secondAngle) * (secondLen * 0.22f))
-                drawLine(color = Color(0xFFFFF0B3), start = secTail, end = secTip, strokeWidth = 1.8f, cap = StrokeCap.Round)
-                drawCircle(color = Color(0xFF15181D), radius = 6.5f, center = center)
-                drawCircle(color = Color(0xFFD4AF37), radius = 4.0f, center = center)
-            } else {
-                drawCircle(color = Color(0xFFE5C158), radius = 4.5f, center = center)
-            }
-        }
-        else -> {
-            val handColor = if (isAod) Color(0xFFE2E8F0) else accentColor
+    val hourDeg = hours * 30f + minutes * 0.5f
+    val minDeg = minutes * 6f + seconds * 0.1f
+    val secDeg = seconds * 6f
 
-            drawLine(color = handColor, start = hourTail, end = hourTip, strokeWidth = 5.5f, cap = StrokeCap.Round)
-            drawLine(color = if (isAod) Color(0xFF000000) else Color(0xAA000000), start = Offset(center.x + cos(hourAngle) * (hourLen * 0.25f), center.y + sin(hourAngle) * (hourLen * 0.25f)), end = Offset(center.x + cos(hourAngle) * (hourLen * 0.78f), center.y + sin(hourAngle) * (hourLen * 0.78f)), strokeWidth = 2.0f, cap = StrokeCap.Round)
+    val hourRes = if (isAod) R.drawable.refined_3_hour_aod else R.drawable.refined_3_hour
+    val hourBmp = getBmp(hourRes)
+    withTransform({
+        rotate(degrees = hourDeg, pivot = centerDial)
+    }) {
+        drawImage(
+            image = hourBmp,
+            dstOffset = IntOffset((480 * scale).toInt(), (250 * scale).toInt()),
+            dstSize = IntSize((40 * scale).toInt(), (280 * scale).toInt())
+        )
+    }
 
-            drawLine(color = handColor, start = minTail, end = minTip, strokeWidth = 4.8f, cap = StrokeCap.Round)
-            drawLine(color = if (isAod) Color(0xFF000000) else Color(0xAA000000), start = Offset(center.x + cos(minuteAngle) * (minuteLen * 0.20f), center.y + sin(minuteAngle) * (minuteLen * 0.20f)), end = Offset(center.x + cos(minuteAngle) * (minuteLen * 0.85f), center.y + sin(minuteAngle) * (minuteLen * 0.85f)), strokeWidth = 1.8f, cap = StrokeCap.Round)
+    val minRes = if (isAod) R.drawable.refined_3_minute_aod else R.drawable.refined_3_minute
+    val minBmp = getBmp(minRes)
+    withTransform({
+        rotate(degrees = minDeg, pivot = centerDial)
+    }) {
+        drawImage(
+            image = minBmp,
+            dstOffset = IntOffset((483 * scale).toInt(), (150 * scale).toInt()),
+            dstSize = IntSize((34 * scale).toInt(), (380 * scale).toInt())
+        )
+    }
 
-            if (!isAod) {
-                val secTip = Offset(center.x + cos(secondAngle) * secondLen, center.y + sin(secondAngle) * secondLen)
-                val secTail = Offset(center.x - cos(secondAngle) * (secondLen * 0.22f), center.y - sin(secondAngle) * (secondLen * 0.22f))
-                drawLine(color = Color(0xFFD4AF37), start = secTail, end = secTip, strokeWidth = 1.8f, cap = StrokeCap.Round)
-                drawCircle(color = Color(0xFF15181D), radius = 6.0f, center = center)
-                drawCircle(color = Color(0xFFD4AF37), radius = 3.5f, center = center)
-            } else {
-                drawCircle(color = Color(0xFFE2E8F0), radius = 4.0f, center = center)
-            }
+    if (!isAod) {
+        val secBmp = getBmp(R.drawable.uc_3_second)
+        withTransform({
+            rotate(degrees = secDeg, pivot = centerDial)
+        }) {
+            drawImage(
+                image = secBmp,
+                dstOffset = IntOffset((492 * scale).toInt(), (140 * scale).toInt()),
+                dstSize = IntSize((16 * scale).toInt(), (395 * scale).toInt())
+            )
         }
     }
+
+    val hubBmp = getBmp(R.drawable.uc_3_hub)
+    drawImage(
+        image = hubBmp,
+        dstOffset = IntOffset((477 * scale).toInt(), (477 * scale).toInt()),
+        dstSize = IntSize((46 * scale).toInt(), (46 * scale).toInt())
+    )
 }
+
 
 // ---------------------------------------------------------
 // Moon Phase Calculation Helpers
