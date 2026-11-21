@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WatchFace clipShape="CIRCLE" width="1000" height="1000">
+    <Metadata key="CLOCK_TYPE" value="ANALOG"/>
+    <Scene backgroundColor="#ff000000">
+        <!-- Active Mode -->
+        <Group name="active_obsidian" x="0" y="0" width="1000" height="1000">
+            <Variant mode="AMBIENT" target="alpha" value="0"/>
+
+            <!-- 1. Brushed Metal Dial with Subdials & Hour Markers -->
+            <PartImage x="0" y="0" width="1000" height="1000">
+                <Image resource="obsidian_dial"/>
+            </PartImage>
+
+            <!-- 2. Recessed Date Window at 4:30 (Day of Month) -->
+            <PartText x="640" y="632" width="100" height="56">
+                <Text align="CENTER" ellipsis="TRUE">
+                    <Font family="functional_medium" size="36" color="#ffE7E5DE">
+                        <Template>%d<Parameter expression="[DAY]"/></Template>
+                    </Font>
+                </Text>
+            </PartText>
+
+            <!-- 3. Power Reserve Needle at 9 o'clock (285, 490) -->
+            <Group name="power_reserve_group" x="235" y="440" width="100" height="100">
+                <PartImage x="43" y="10" width="14" height="100" pivotX="0.5" pivotY="0.80">
+                    <Transform target="rotation" value="([BATTERY_PERCENT] - 50) * 1.2"/>
+                    <Image resource="obsidian_power_hand"/>
+                </PartImage>
+            </Group>
+
+            <!-- 4. Independent Small Seconds at 6 o'clock (Center at 500, 710) -->
+            <AnalogClock x="493" y="606" width="14" height="130">
+                <SecondHand resource="obsidian_small_sec" x="0" y="0" width="14" height="130" pivotX="0.5" pivotY="0.80"/>
+            </AnalogClock>
+
+            <!-- 5. Center Dauphine Hands (Hour & Minute only - NO center seconds) -->
+            <AnalogClock x="0" y="0" width="1000" height="1000">
+                <HourHand resource="obsidian_hour" x="477" y="245" width="46" height="290" pivotX="0.5" pivotY="0.893"/>
+                <MinuteHand resource="obsidian_minute" x="481" y="145" width="38" height="390" pivotX="0.5" pivotY="0.920"/>
+            </AnalogClock>
+
+            <!-- 6. Central Hub Cap -->
+            <PartImage x="474" y="474" width="52" height="52">
+                <Image resource="obsidian_hub"/>
+            </PartImage>
+        </Group>
+
+        <!-- Ambient (AOD) Mode -->
+        <Group name="ambient" x="0" y="0" width="1000" height="1000" alpha="0">
+            <Variant mode="AMBIENT" target="alpha" value="255"/>
+
+            <!-- AMOLED Black Dial with Applied Titanium Markers & Subdial Rings -->
+            <PartImage x="0" y="0" width="1000" height="1000">
+                <Image resource="obsidian_dial_aod"/>
+            </PartImage>
+
+            <!-- AOD Recessed Date Window -->
+            <PartText x="640" y="632" width="100" height="56">
+                <Text align="CENTER" ellipsis="TRUE">
+                    <Font family="functional_medium" size="34" color="#ffAAB6BB">
+                        <Template>%d<Parameter expression="[DAY]"/></Template>
+                    </Font>
+                </Text>
+            </PartText>
+
+            <!-- AOD Center Dauphine Hands (Hour & Minute with Platinum Luminous Contour) -->
+            <AnalogClock x="0" y="0" width="1000" height="1000">
+                <HourHand resource="obsidian_hour_aod" x="477" y="245" width="46" height="290" pivotX="0.5" pivotY="0.893"/>
+                <MinuteHand resource="obsidian_minute_aod" x="481" y="145" width="38" height="390" pivotX="0.5" pivotY="0.920"/>
+            </AnalogClock>
+
+            <!-- Central Hub Cap -->
+            <PartImage x="474" y="474" width="52" height="52">
+                <Image resource="obsidian_hub"/>
+            </PartImage>
+        </Group>
+    </Scene>
+</WatchFace>

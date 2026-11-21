@@ -5,6 +5,7 @@
     <string name="open_galaxy_wearable">Open in Galaxy Wearable</string>
     <string name="theme_sage_nocturne">Sage Nocturne</string>
     <string name="theme_lunar_phase">Lunar Phase</string>
+    <string name="theme_obsidian_atelier">Obsidian Atelier</string>
     <string name="active_mode">Active</string>
     <string name="aod_mode">AOD</string>
 </resources>

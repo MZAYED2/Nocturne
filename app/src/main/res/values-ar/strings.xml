@@ -5,6 +5,7 @@
     <string name="open_galaxy_wearable">فتح في Galaxy Wearable</string>
     <string name="theme_sage_nocturne">Sage Nocturne (العثماني الأخضر)</string>
     <string name="theme_lunar_phase">Lunar Phase (القمر السينمائي)</string>
+    <string name="theme_obsidian_atelier">Obsidian Atelier (الميكانيكي الفاخر)</string>
     <string name="active_mode">الوضع النشط (Active)</string>
     <string name="aod_mode">وضع الاستعداد (AOD)</string>
 </resources>

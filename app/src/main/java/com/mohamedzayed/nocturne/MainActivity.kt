@@ -201,7 +201,7 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 description = "Ottoman Sage Green heritage dial with engraved calligraphy, small moon phase, and active/AOD modes.",
                 descriptionAr = "التصميم العثماني الأخضر الأصلي مع الزخرفة العثمانية، القمر الصغير، الذكر، والتعقيدات الثلاث.",
                 packageName = "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-                validationToken = "qi0T6EXF0FdOkhRJsXmb48lRzAE3SaI23UenT8esI5U=:MS4wLjA=",
+                validationToken = "LEyUVVVxzrdjahyMZuKs1kuDJfvjhYbAsDZANJ8y8Gw=:MS4wLjA=",
                 apkFilename = "Nocturne-Sage-Push.apk",
                 downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Sage-Push.apk",
                 preview = "preview_sage.png",
@@ -215,10 +215,24 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 description = "Large poetic astronomical moon disc filling the watch display, with luminous dual-contrast hands and minimal AOD dial.",
                 descriptionAr = "قمر سينمائي كبير يملأ 92% من الشاشة بإضاءة ثلاثية الأبعاد دقيقة فلكياً عبر 29 منزلة، مع عقارب بتباين مزدوج، وشاشة AOD سوداء موفرة للطاقة.",
                 packageName = "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-                validationToken = "HPFpQGKLbJChYL9qIuOuEIIVBQlAwqPpYBLNcxpttCI=:MS4wLjA=",
+                validationToken = "gdlDw+2eKHp7UIsh884nEwZRDfaSnQa46Ve2sjQzFK0=:MS4wLjA=",
                 apkFilename = "Nocturne-Lunar-Push.apk",
                 downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Lunar-Push.apk",
                 preview = "preview_lunar.png",
+                versionCode = 1,
+                versionName = "1.0.0"
+            ),
+            WatchFaceItem(
+                id = "obsidian_atelier",
+                name = "Obsidian Atelier",
+                nameAr = "Obsidian Atelier (الميكانيكي الفاخر)",
+                description = "Masterpiece Haute Horlogerie mechanical dial in Brushed Platinum and Smoked Graphite with Dauphine hands, Small Seconds subdial, Power Reserve indicator, and date window.",
+                descriptionAr = "تصميم ميكانيكي كلاسيكي فاخر بلون البلاتين المصقول والجرافيت الدخاني، مع عقارب دوفين المركزية، عقرب الثواني الصغير عند 6، مؤشر احتياطي الطاقة عند 9، ونافذة التاريخ المشطوفة.",
+                packageName = "com.mohamedzayed.nocturne.watchfacepush.nocturne",
+                validationToken = "/W6ruN8V/lOBkN9ZRlohS2vnErEUlhcSy8BYpzExTY8=:MS4wLjA=",
+                apkFilename = "Nocturne-Obsidian-Push.apk",
+                downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Obsidian-Push.apk",
+                preview = "preview_obsidian.png",
                 versionCode = 1,
                 versionName = "1.0.0"
             ),
@@ -229,7 +243,7 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 description = "Imperial Emerald and Gold edition with ornate Ottoman pattern, golden hands, and emerald accents.",
                 descriptionAr = "الإصدار الزمردي والذهبي الإمبراطوري بتعديل بصري واضح وعقارب ذهبية لاختبار وتأكيد التحديث اللاسلكي.",
                 packageName = "com.mohamedzayed.nocturne.watchfacepush.nocturne",
-                validationToken = "BLdGUfpTh6A/OaEFkfWQTseiPb45VPf6B41p/MkzY/s=:MS4wLjA=",
+                validationToken = "+PMlrhh0DSVpFbZYvKOea3AYQ6d89EvZbq5xRhRhz5U=:MS4wLjA=",
                 apkFilename = "Nocturne-Emerald-Push.apk",
                 downloadUrl = "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Emerald-Push.apk",
                 preview = "preview_emerald.png",
@@ -501,29 +515,56 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            val phaseInfo = getMoonPhaseName(previewMoonPhase.roundToInt().coerceIn(0, 28))
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = Color(0xFF161C24),
-                border = BorderStroke(1.dp, Color(0xFF263342))
-            ) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
+            if (selectedItem.id == "obsidian_atelier") {
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF161C24),
+                    border = BorderStroke(1.dp, Color(0xFF263342))
                 ) {
-                    Icon(
-                        Icons.Default.Brightness3,
-                        contentDescription = null,
-                        tint = Color(0xFFD4AF37),
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "منزلة القمر: ${phaseInfo.first} (يوم ${previewMoonPhase.roundToInt()}/28)",
-                        color = Color(0xFFF1E6D2),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium
-                    )
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Watch,
+                            contentDescription = null,
+                            tint = Color(0xFFCFD8DC),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "تعقيدات ميكانيكية: ثوانٍ مستقلة عند 6 • احتياطي طاقة عند 9 • نافذة تاريخ 4:30",
+                            color = Color(0xFFE2E8F0),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            } else {
+                val phaseInfo = getMoonPhaseName(previewMoonPhase.roundToInt().coerceIn(0, 28))
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF161C24),
+                    border = BorderStroke(1.dp, Color(0xFF263342))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            Icons.Default.Brightness3,
+                            contentDescription = null,
+                            tint = Color(0xFFD4AF37),
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = "منزلة القمر: ${phaseInfo.first} (يوم ${previewMoonPhase.roundToInt()}/28)",
+                            color = Color(0xFFF1E6D2),
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
                 }
             }
 
@@ -591,6 +632,7 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                                     .background(
                                         when (item.id) {
                                             "lunar_phase" -> Color(0xFF1A232E)
+                                            "obsidian_atelier" -> Color(0xFF22262B)
                                             "emerald_nocturne" -> Color(0xFF0F3B25)
                                             else -> Color(0xFF1E3A2D)
                                         }
@@ -600,6 +642,7 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                                 Icon(
                                     imageVector = when (item.id) {
                                         "lunar_phase" -> Icons.Default.Brightness2
+                                        "obsidian_atelier" -> Icons.Default.Watch
                                         "emerald_nocturne" -> Icons.Default.Diamond
                                         else -> Icons.Default.FilterVintage
                                     },
@@ -722,36 +765,38 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            if (selectedItem.id != "obsidian_atelier") {
+                Spacer(modifier = Modifier.height(16.dp))
 
-            Text(
-                text = "معاينة منازل القمر الـ 29 (من المحاق إلى البدر):",
-                color = Color(0xFFBAC7D5),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier.fillMaxWidth()
-            )
-            Slider(
-                value = previewMoonPhase,
-                onValueChange = { previewMoonPhase = it },
-                valueRange = 0f..28f,
-                steps = 27,
-                colors = SliderDefaults.colors(
-                    thumbColor = Color(0xFFF1E6D2),
-                    activeTrackColor = Color(0xFFD4AF37),
-                    inactiveTrackColor = Color(0xFF2C3947)
+                Text(
+                    text = "معاينة منازل القمر الـ 29 (من المحاق إلى البدر):",
+                    color = Color(0xFFBAC7D5),
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.fillMaxWidth()
                 )
-            )
+                Slider(
+                    value = previewMoonPhase,
+                    onValueChange = { previewMoonPhase = it },
+                    valueRange = 0f..28f,
+                    steps = 27,
+                    colors = SliderDefaults.colors(
+                        thumbColor = Color(0xFFF1E6D2),
+                        activeTrackColor = Color(0xFFD4AF37),
+                        inactiveTrackColor = Color(0xFF2C3947)
+                    )
+                )
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text("محاق (0)", color = Color(0xFF64748B), fontSize = 10.sp)
-                Text("تربيع أول (7)", color = Color(0xFF64748B), fontSize = 10.sp)
-                Text("بدر كامل (14)", color = Color(0xFF64748B), fontSize = 10.sp)
-                Text("تربيع أخير (21)", color = Color(0xFF64748B), fontSize = 10.sp)
-                Text("محاق (28)", color = Color(0xFF64748B), fontSize = 10.sp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text("محاق (0)", color = Color(0xFF64748B), fontSize = 10.sp)
+                    Text("تربيع أول (7)", color = Color(0xFF64748B), fontSize = 10.sp)
+                    Text("بدر كامل (14)", color = Color(0xFF64748B), fontSize = 10.sp)
+                    Text("تربيع أخير (21)", color = Color(0xFF64748B), fontSize = 10.sp)
+                    Text("محاق (28)", color = Color(0xFF64748B), fontSize = 10.sp)
+                }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
@@ -1530,6 +1575,14 @@ fun WatchFaceDialCanvas(
                     getBmp = ::getBmp
                 )
             }
+            "obsidian_atelier" -> {
+                drawObsidianAtelierFace(
+                    displayMode = displayMode,
+                    scale = scale,
+                    currentTime = currentTime,
+                    getBmp = ::getBmp
+                )
+            }
             "emerald_nocturne" -> {
                 drawEmeraldNocturneFace(
                     displayMode = displayMode,
@@ -2041,6 +2094,167 @@ fun DrawScope.drawEmeraldNocturneFace(
         dstOffset = IntOffset((477 * scale).toInt(), (477 * scale).toInt()),
         dstSize = IntSize((46 * scale).toInt(), (46 * scale).toInt())
     )
+}
+
+fun DrawScope.drawObsidianAtelierFace(
+    displayMode: DisplayMode,
+    scale: Float,
+    currentTime: Calendar,
+    getBmp: (Int) -> ImageBitmap
+) {
+    val isAod = displayMode == DisplayMode.AOD
+    val centerDial = Offset(500f * scale, 500f * scale)
+
+    // 1. Pure AMOLED Black Background
+    drawCircle(color = Color(0xFF000000), radius = 500f * scale, center = centerDial)
+
+    if (!isAod) {
+        // Active Mode:
+        // 1. Brushed Metal Dial with Subdials & Applied Markers
+        val dialBmp = getBmp(R.drawable.obsidian_dial)
+        drawImage(
+            image = dialBmp,
+            dstOffset = IntOffset(0, 0),
+            dstSize = IntSize((1000 * scale).toInt(), (1000 * scale).toInt())
+        )
+
+        // 2. Beveled Date Window at 4:30 (Day of month)
+        drawContext.canvas.nativeCanvas.apply {
+            val datePaint = Paint().apply {
+                color = android.graphics.Color.parseColor("#E7E5DE")
+                textAlign = Paint.Align.CENTER
+                textSize = 34f * scale
+                isAntiAlias = true
+                typeface = Typeface.DEFAULT_BOLD
+            }
+            val day = currentTime.get(Calendar.DAY_OF_MONTH).toString()
+            drawText(day, 690f * scale, 672f * scale, datePaint)
+        }
+
+        // 3. Power Reserve Needle at 9 o'clock (285, 490)
+        val powerBmp = getBmp(R.drawable.obsidian_power_hand)
+        val powerPivot = Offset(285f * scale, 520f * scale)
+        val batteryPct = 84f
+        val powerAngle = (batteryPct - 50f) * 1.2f
+        withTransform({
+            rotate(degrees = powerAngle, pivot = powerPivot)
+        }) {
+            drawImage(
+                image = powerBmp,
+                dstOffset = IntOffset((278 * scale).toInt(), (450 * scale).toInt()),
+                dstSize = IntSize((14 * scale).toInt(), (100 * scale).toInt())
+            )
+        }
+
+        // 4. Small Seconds at 6 o'clock (Pivot at 500, 710)
+        val seconds = currentTime.get(Calendar.SECOND)
+        val secDeg = seconds * 6f
+        val secPivot = Offset(500f * scale, 710f * scale)
+        val smallSecBmp = getBmp(R.drawable.obsidian_small_sec)
+        withTransform({
+            rotate(degrees = secDeg, pivot = secPivot)
+        }) {
+            drawImage(
+                image = smallSecBmp,
+                dstOffset = IntOffset((493 * scale).toInt(), (606 * scale).toInt()),
+                dstSize = IntSize((14 * scale).toInt(), (130 * scale).toInt())
+            )
+        }
+
+        // 5. Center Dauphine Hands (Hour & Minute - NO center second hand)
+        val hours = currentTime.get(Calendar.HOUR_OF_DAY) % 12
+        val minutes = currentTime.get(Calendar.MINUTE)
+        val hourDeg = hours * 30f + minutes * 0.5f
+        val minDeg = minutes * 6f + seconds * 0.1f
+
+        val hourBmp = getBmp(R.drawable.obsidian_hour)
+        withTransform({
+            rotate(degrees = hourDeg, pivot = centerDial)
+        }) {
+            drawImage(
+                image = hourBmp,
+                dstOffset = IntOffset((477 * scale).toInt(), (245 * scale).toInt()),
+                dstSize = IntSize((46 * scale).toInt(), (290 * scale).toInt())
+            )
+        }
+
+        val minBmp = getBmp(R.drawable.obsidian_minute)
+        withTransform({
+            rotate(degrees = minDeg, pivot = centerDial)
+        }) {
+            drawImage(
+                image = minBmp,
+                dstOffset = IntOffset((481 * scale).toInt(), (145 * scale).toInt()),
+                dstSize = IntSize((38 * scale).toInt(), (390 * scale).toInt())
+            )
+        }
+
+        // 6. Central Hub Cap
+        val hubBmp = getBmp(R.drawable.obsidian_hub)
+        drawImage(
+            image = hubBmp,
+            dstOffset = IntOffset((474 * scale).toInt(), (474 * scale).toInt()),
+            dstSize = IntSize((52 * scale).toInt(), (52 * scale).toInt())
+        )
+    } else {
+        // AOD Mode:
+        // 1. AOD Dial (AMOLED Black with applied titanium markers & subtle rings)
+        val dialBmp = getBmp(R.drawable.obsidian_dial_aod)
+        drawImage(
+            image = dialBmp,
+            dstOffset = IntOffset(0, 0),
+            dstSize = IntSize((1000 * scale).toInt(), (1000 * scale).toInt())
+        )
+
+        // 2. AOD Date Window
+        drawContext.canvas.nativeCanvas.apply {
+            val datePaint = Paint().apply {
+                color = android.graphics.Color.parseColor("#AAB6BB")
+                textAlign = Paint.Align.CENTER
+                textSize = 32f * scale
+                isAntiAlias = true
+                typeface = Typeface.DEFAULT_BOLD
+            }
+            val day = currentTime.get(Calendar.DAY_OF_MONTH).toString()
+            drawText(day, 690f * scale, 672f * scale, datePaint)
+        }
+
+        // Center Dauphine Hands AOD (Hour & Minute with Platinum Luminous Contour)
+        val hours = currentTime.get(Calendar.HOUR_OF_DAY) % 12
+        val minutes = currentTime.get(Calendar.MINUTE)
+        val hourDeg = hours * 30f + minutes * 0.5f
+        val minDeg = minutes * 6f
+
+        val hourBmp = getBmp(R.drawable.obsidian_hour_aod)
+        withTransform({
+            rotate(degrees = hourDeg, pivot = centerDial)
+        }) {
+            drawImage(
+                image = hourBmp,
+                dstOffset = IntOffset((477 * scale).toInt(), (245 * scale).toInt()),
+                dstSize = IntSize((46 * scale).toInt(), (290 * scale).toInt())
+            )
+        }
+
+        val minBmp = getBmp(R.drawable.obsidian_minute_aod)
+        withTransform({
+            rotate(degrees = minDeg, pivot = centerDial)
+        }) {
+            drawImage(
+                image = minBmp,
+                dstOffset = IntOffset((481 * scale).toInt(), (145 * scale).toInt()),
+                dstSize = IntSize((38 * scale).toInt(), (390 * scale).toInt())
+            )
+        }
+
+        // Central Hub Cap
+        val hubBmp = getBmp(R.drawable.obsidian_hub)
+        drawImage(
+            image = hubBmp,
+            dstOffset = IntOffset((474 * scale).toInt(), (474 * scale).toInt()),
+            dstSize = IntSize((52 * scale).toInt(), (52 * scale).toInt())
+        )
+    }
 }
 
 

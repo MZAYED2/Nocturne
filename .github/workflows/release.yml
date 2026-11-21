@@ -90,6 +90,7 @@ jobs:
           mkdir -p app/src/main/assets/watchfaces
           cp distribution/Nocturne-Sage-Push.apk app/src/main/assets/watchfaces/
           cp distribution/Nocturne-Lunar-Push.apk app/src/main/assets/watchfaces/
+          cp distribution/Nocturne-Obsidian-Push.apk app/src/main/assets/watchfaces/
           cp distribution/Nocturne-Emerald-Push.apk app/src/main/assets/watchfaces/
 
       - name: Build Wear Bridge and Phone App
@@ -115,6 +116,7 @@ jobs:
           # 3. WFF Watch Face Push Packages
           cp "distribution/Nocturne-Sage-Push.apk" "release-apks/Nocturne-Sage-Push.apk"
           cp "distribution/Nocturne-Lunar-Push.apk" "release-apks/Nocturne-Lunar-Push.apk"
+          cp "distribution/Nocturne-Obsidian-Push.apk" "release-apks/Nocturne-Obsidian-Push.apk"
           cp "distribution/Nocturne-Emerald-Push.apk" "release-apks/Nocturne-Emerald-Push.apk"
           
           # 4. Catalog Manifest
@@ -132,22 +134,24 @@ jobs:
           body: |
             ## Nocturne ${{ steps.version.outputs.tag }}
             
-            ### 📱 تطبيق الموبايل (Samsung Galaxy S25 Ultra):
+            ### 📱 تطبيق الموبايل (Nocturne Companion):
             - **`Nocturne-Phone-${{ steps.version.outputs.tag }}.apk`**
-            - معاينة حية تفاعلية للثيمات الثلاثة (**Sage Nocturne** و **Lunar Phase** و **Emerald Nocturne**).
-            - زر **Apply to Watch** للربط الحقيقي عبر Wear OS Data Layer وتثبيت الواجهات عن بُعد عبر **Watch Face Push API**.
-            - دعم تنزيل وتحديث أي واجهات جديدة تُضاف لمستودع GitHub مباشرة وبدون الحاجة لإعادة تثبيت التطبيق.
+            - مركز التحديثات الموحد مع التثبيت المباشر فوق النسخة القديمة (In-place Updates).
+            - أيقونة التطبيق المحدثة **Eclipse Layers** بهلال ميكانيكي ثلاثي الأبعاد وخلفية كحلية نقية.
+            - معاينة حية فائقة الدقة للثيمات الرسمية الثلاثة في وضعي Active و AOD.
+            - نقل وتثبيت الواجهات لاسلكياً عبر Wear OS Data Layer و Watch Face Push بدون تصحيح أخطاء لاسلكي.
             
             ### ⌚ تطبيق الربط للساعة (Samsung Galaxy Watch 5 - Wear OS 6):
             - **`Nocturne-WearBridge-${{ steps.version.outputs.tag }}.apk`**
             - ثبّت هذا الملف **مرة واحدة فقط** على الساعة عبر تطبيق **GeminiMan Wear OS Manager**.
-            - بعد تثبيته يمكنك إغلاق الـ **Wireless Debugging** نهائياً على الساعة!
+            - يدعم التحديث المباشر فوق النسخة القديمة بدون حذف، مع إمكانية إغلاق تصحيح الأخطاء اللاسلكي نهائياً.
             
-            ### 🎨 حزم واجهات الساعة WFF المعتمدة رسمياً (Watch Face Format):
-            - **`Nocturne-Sage-Push.apk`** — الثيم العثماني الأخضر الأصلي مع الزخارف والأذكار ومنازل القمر والتعقيدات.
-            - **`Nocturne-Lunar-Push.apk`** — ثيم القمر السينمائي الكبير (92% من الشاشة، 29 منزلة فلكية، وضع AOD أسود نقي).
-            - **`Nocturne-Emerald-Push.apk`** — الإصدار الزمردي الإمبراطوري بتعديل بصري واضح وعقارب ذهبية لاختبار وتأكيد التحديث اللاسلكي.
-            - **`catalog.json`** — فهرس الواجهات مع رموز التحقق الرسمية (Validation Tokens).
+            ### 🎨 حزم واجهات الساعة WFF المعتمدة رسمياً (Watch Face Format 1.0):
+            - **`Nocturne-Sage-Push.apk`** — الثيم العثماني الأخضر الأصلي مع الزخارف العثمانية، ذكر الصباح/المساء، منازل القمر، والتعقيدات الثلاث.
+            - **`Nocturne-Lunar-Push.apk`** — ثيم القمر السينمائي الفلكي الكبير (92% من الشاشة، 29 منزلة فلكية، وضع AOD أسود نقي).
+            - **`Nocturne-Obsidian-Push.apk`** — ثيم Obsidian Atelier الميكانيكي الفاخر (بلاتين مصقول، عقارب دوفين، ثوانٍ مستقلة عند 6، احتياطي طاقة عند 9، ونافذة تاريخ مشطوفة 4:30).
+            - **`Nocturne-Emerald-Push.apk`** — الإصدار التذكاري الزمردي والذهبي.
+            - **`catalog.json`** — فهرس الواجهات المحدث مع رموز التحقق الرسمية (Validation Tokens).
           files: |
             release-apks/*
         env:
