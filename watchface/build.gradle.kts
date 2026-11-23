@@ -4,7 +4,31 @@ plugins {
     alias(libs.plugins.android.application)
 }
 
+val studioNavy = providers.gradleProperty("wffStudioNavy").map(String::toBoolean).orElse(false).get()
+if (studioNavy) {
+    val generated = layout.buildDirectory.dir("generated/studio-navy")
+    val generateStudioNavy = tasks.register<Sync>("generateStudioNavy") {
+        from(rootProject.layout.projectDirectory.file("tools/watchface_sage.xml")) {
+            into("raw")
+            rename { "watchface.xml" }
+            filter { line: String ->
+                when {
+                    line.trimStart().startsWith("<ColorConfiguration id=\"background\"") ||
+                        line.trimStart().startsWith("<ColorOption ") ||
+                        line.trim() == "</ColorConfiguration>" -> ""
+                    else -> line.replace("[CONFIGURATION.background.0]", "#ff070F19")
+                }
+            }
+        }
+        into(generated)
+    }
+    tasks.named("preBuild").configure { dependsOn(generateStudioNavy) }
+}
+
 android {
+    if (studioNavy) sourceSets.named("debug") {
+        res.directories.add(layout.buildDirectory.dir("generated/studio-navy").get().asFile.path)
+    }
     namespace = "com.mohamedzayed.nocturne.watchfacepush.nocturne"
     compileSdk {
         version = release(36)
@@ -39,9 +63,24 @@ android {
 
     val resolvedStoreFile = if (keystoreEnvPath != null) rootProject.file(keystoreEnvPath) else rootProject.file(".signing/nocturne-release.jks")
 
+    val hasReleaseSigning = resolvedStoreFile.exists() && !keystorePasswordEnv.isNullOrEmpty() &&
+        !keyAliasEnv.isNullOrEmpty() && !keyPasswordEnv.isNullOrEmpty()
+
+    val requireReleaseSigning = tasks.register("requireReleaseSigning") {
+        inputs.property("releaseSigningConfigured", hasReleaseSigning)
+        doLast {
+            check(inputs.properties["releaseSigningConfigured"] == true) {
+                "Configure the permanent Nocturne signing key before building a release APK."
+            }
+        }
+    }
+    tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+        dependsOn(requireReleaseSigning)
+    }
+
     signingConfigs {
         create("release") {
-            if (resolvedStoreFile.exists() && !keystorePasswordEnv.isNullOrEmpty() && !keyAliasEnv.isNullOrEmpty() && !keyPasswordEnv.isNullOrEmpty()) {
+            if (hasReleaseSigning) {
                 storeFile = resolvedStoreFile
                 storePassword = keystorePasswordEnv
                 keyAlias = keyAliasEnv

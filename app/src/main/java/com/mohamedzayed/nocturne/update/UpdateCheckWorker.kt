@@ -52,17 +52,19 @@ class UpdateCheckWorker(
 
         if (prefs.autoDownload && release.phoneApkUrl != null && release.phoneApkName != null) {
             if (!prefs.wifiOnly || UpdateManager.isWifiConnected(context)) {
-                val destFile = File(context.cacheDir, release.phoneApkName)
+                val destFile = File(context.cacheDir, "Nocturne-Phone-${release.numericVersion}.apk")
                 val dlResult = UpdateManager.downloadApk(
                     context = context,
                     urlString = release.phoneApkUrl,
                     destinationFile = destFile,
+                    expectedSize = release.phoneApkSize,
+                    expectedSha256 = release.phoneApkSha256,
                     wifiOnly = prefs.wifiOnly,
                     onProgress = { _, _, _ -> }
                 )
                 if (dlResult.isSuccess) {
                     val downloadedFile = dlResult.getOrThrow()
-                    if (UpdateManager.verifyApkSignerMatchesCurrentApp(context, downloadedFile)) {
+                    if (UpdateManager.verifyApkSignerMatchesCurrentApp(context, downloadedFile, release.numericVersion)) {
                         isDownloaded = true
                         apkFile = downloadedFile
                     }

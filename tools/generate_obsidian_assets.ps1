@@ -1,8 +1,8 @@
 Add-Type -AssemblyName System.Drawing
 
 $targetDirs = @(
-    "F:\Progects-Android-Studio\Nocturne\watchface\src\main\res\drawable",
-    "F:\Progects-Android-Studio\Nocturne\app\src\main\res\drawable"
+    "$PSScriptRoot\..\watchface\src\main\res\drawable",
+    "$PSScriptRoot\..\app\src\main\res\drawable"
 )
 
 function Save-ImageBoth($name, $bmp) {

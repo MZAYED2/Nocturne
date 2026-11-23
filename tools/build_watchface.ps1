@@ -1,7 +1,7 @@
 param()
 
-$src = "F:\Progects-Android-Studio\watchface\src\main\res\raw\watchface.xml"
-$dest = "F:\Progects-Android-Studio\Nocturne\watchface\src\main\res\raw\watchface.xml"
+$src = "$PSScriptRoot\..\legacy-projects\Minimal-Sage\watchface\src\main\res\raw\watchface.xml"
+$dest = "$PSScriptRoot\..\watchface\src\main\res\raw\watchface.xml"
 
 $doc = New-Object System.Xml.XmlDocument
 $doc.PreserveWhitespace = $true

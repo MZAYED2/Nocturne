@@ -2,6 +2,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-feature android:name="android.hardware.type.watch" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <!-- Required for Watch Face Push API -->
     <uses-permission android:name="com.google.wear.permission.PUSH_WATCH_FACES" />
@@ -38,11 +40,14 @@
             </intent-filter>
         </activity>
 
+        <receiver
+            android:name=".BridgeInstallResultReceiver"
+            android:exported="false" />
+
         <service
             android:name=".WatchFacePushListenerService"
             android:exported="true">
             <intent-filter>
-                <action android:name="com.google.android.gms.wearable.DATA_CHANGED" />
                 <action android:name="com.google.android.gms.wearable.MESSAGE_RECEIVED" />
                 <action android:name="com.google.android.gms.wearable.CHANNEL_EVENT" />
                 <data

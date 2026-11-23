@@ -39,6 +39,10 @@ import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import com.mohamedzayed.nocturne.ConnectedBridge
+import com.mohamedzayed.nocturne.findWatchBridge
+import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -81,7 +85,19 @@ fun UpdateCenterDialog(
     var isTransferringBridge by remember { mutableStateOf(false) }
     var bridgeTransferStatus by remember { mutableStateOf("") }
 
-    val hasNewVersion = latestRelease != null && UpdateManager.isNewerThanCurrent(latestRelease!!)
+    var connectedBridge by remember { mutableStateOf<ConnectedBridge?>(null) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            connectedBridge = try {
+                findWatchBridge(context)
+            } catch (_: com.google.android.gms.common.api.ApiException) {
+                null
+            }
+            delay(8000)
+        }
+    }
+
+    val hasNewVersion = latestRelease?.let(UpdateManager::isNewerThanCurrent) == true
 
     AlertDialog(
         onDismissRequest = onDismissRequest,
@@ -157,7 +173,7 @@ fun UpdateCenterDialog(
                                     color = Color(0xFF1E293B)
                                 ) {
                                     Text(
-                                        "مُحدّث ✓",
+                                        if (latestRelease == null) "لم يتم الفحص" else "مُحدّث ✓",
                                         color = Color(0xFF81D4FA),
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Bold,
@@ -256,6 +272,9 @@ fun UpdateCenterDialog(
                                 Text(phoneDownloadStatus, color = Color(0xFFE2E8F0), fontSize = 11.sp)
                             }
 
+                            if (!isDownloadingPhone && phoneDownloadStatus.isNotEmpty()) {
+                                Text(phoneDownloadStatus, color = Color(0xFFE2E8F0), fontSize = 11.sp)
+                            }
                             Spacer(modifier = Modifier.height(10.dp))
                             if (phoneDownloadedFile != null && phoneDownloadedFile!!.exists()) {
                                 Button(
@@ -279,11 +298,13 @@ fun UpdateCenterDialog(
                                         isDownloadingPhone = true
                                         phoneDownloadStatus = "جاري الاتصال بالسيرفر..."
                                         scope.launch {
-                                            val destFile = File(context.cacheDir, rel.phoneApkName ?: "Nocturne-Phone-update.apk")
+                                            val destFile = File(context.cacheDir, "Nocturne-Phone-${rel.numericVersion}.apk")
                                             val dlRes = UpdateManager.downloadApk(
                                                 context = context,
                                                 urlString = rel.phoneApkUrl!!,
                                                 destinationFile = destFile,
+                                                expectedSize = rel.phoneApkSize,
+                                                expectedSha256 = rel.phoneApkSha256,
                                                 wifiOnly = wifiOnly,
                                                 onProgress = { fraction, current, total ->
                                                     phoneDownloadProgress = fraction
@@ -292,23 +313,27 @@ fun UpdateCenterDialog(
                                                     phoneDownloadStatus = "جاري التنزيل: ${curMb}MB / ${totMb}MB (${(fraction * 100).toInt()}%)"
                                                 }
                                             )
-                                            isDownloadingPhone = false
                                             if (dlRes.isSuccess) {
                                                 val file = dlRes.getOrThrow()
                                                 phoneDownloadStatus = "فحص سلامة ومطابقة التوقيع الرقمي..."
-                                                val isSignatureValid = UpdateManager.verifyApkSignerMatchesCurrentApp(context, file)
+                                                val isSignatureValid = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                    UpdateManager.verifyApkSignerMatchesCurrentApp(context, file, rel.numericVersion)
+                                                }
                                                 if (isSignatureValid) {
                                                     phoneDownloadedFile = file
                                                     phoneDownloadStatus = "اكتمل التنزيل والتحقق بنجاح! جاهز للتثبيت."
-                                                    // Trigger installer directly
-                                                    UpdateManager.installPhoneApk(context, file)
+                                                    UpdateManager.installPhoneApk(context, file).onFailure {
+                                                        phoneDownloadStatus = it.message ?: "تعذر فتح المثبّت"
+                                                    }
                                                 } else {
-                                                    phoneDownloadStatus = "تحذير: توقيع الحزمة لا يطابق توقيع التطبيق الحالي. قد يتطلب حذف النسخة القديمة لمرة واحدة."
-                                                    phoneDownloadedFile = file
+                                                    phoneDownloadStatus = "تم رفض التحديث: الحزمة أو إصدارها أو توقيعها غير مطابق."
+                                                    phoneDownloadedFile = null
+                                                    file.delete()
                                                 }
                                             } else {
                                                 phoneDownloadStatus = "فشل التنزيل: ${dlRes.exceptionOrNull()?.message}"
                                             }
+                                            isDownloadingPhone = false
                                         }
                                     },
                                     modifier = Modifier.fillMaxWidth(),
@@ -326,8 +351,20 @@ fun UpdateCenterDialog(
                     Spacer(modifier = Modifier.height(12.dp))
                 }
 
+                val bridge = connectedBridge
+                Text(
+                    when {
+                        bridge == null -> "WearBridge: لا توجد ساعة تستجيب"
+                        bridge.protocol != 2 -> "WearBridge ${bridge.version} على ${bridge.node.displayName}: حدّثه على الساعة من مصدره الرسمي"
+                        else -> "WearBridge ${bridge.version} (${bridge.versionCode}) على ${bridge.node.displayName}"
+                    },
+                    color = Color(0xFFE2E8F0), fontSize = 12.sp
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+
                 // 3. Actions: Update WearBridge on Watch
-                if (latestRelease?.bridgeApkUrl != null) {
+                if (latestRelease?.bridgeApkUrl != null && bridge?.protocol == 2 &&
+                    latestRelease!!.numericVersion > bridge.versionCode) {
                     val rel = latestRelease!!
                     Surface(
                         shape = RoundedCornerShape(12.dp),
@@ -359,11 +396,13 @@ fun UpdateCenterDialog(
                                     isTransferringBridge = true
                                     bridgeTransferStatus = "جاري تنزيل حزمة WearBridge من GitHub..."
                                     scope.launch {
-                                        val destFile = File(context.cacheDir, rel.bridgeApkName ?: "Nocturne-WearBridge-update.apk")
+                                        val destFile = File(context.cacheDir, "Nocturne-WearBridge-${rel.numericVersion}.apk")
                                         val dlRes = UpdateManager.downloadApk(
                                             context = context,
                                             urlString = rel.bridgeApkUrl!!,
                                             destinationFile = destFile,
+                                            expectedSize = rel.bridgeApkSize,
+                                            expectedSha256 = rel.bridgeApkSha256,
                                             wifiOnly = wifiOnly,
                                             onProgress = { fraction, current, total ->
                                                 val curMb = current / (1024 * 1024)
@@ -375,12 +414,12 @@ fun UpdateCenterDialog(
                                         if (dlRes.isSuccess) {
                                             val apk = dlRes.getOrThrow()
                                             bridgeTransferStatus = "جاري نقل الحزمة للساعة عبر البلوتوث..."
-                                            val transferRes = UpdateManager.transferBridgeApkToWatch(context, apk) { progress ->
+                                            val transferRes = UpdateManager.transferBridgeApkToWatch(context, apk, rel.numericVersion) { progress ->
                                                 bridgeTransferStatus = progress
                                             }
                                             isTransferringBridge = false
                                             if (transferRes.isSuccess) {
-                                                bridgeTransferStatus = "✓ تم نقل حزمة التحديث للساعة بنجاح! افتح الساعة للمتابعة."
+                                                bridgeTransferStatus = "الساعة أكدت استلام الحزمة والتحقق منها. افتح WearBridge ووافق على التثبيت."
                                             } else {
                                                 bridgeTransferStatus = "فشل النقل للساعة: ${transferRes.exceptionOrNull()?.message}"
                                             }

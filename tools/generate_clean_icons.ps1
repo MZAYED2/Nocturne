@@ -1,6 +1,6 @@
 Add-Type -AssemblyName System.Drawing
 
-$srcFile = "F:\Progects-Android-Studio\Nocturne\design-assets\nocturne_eclipse_layers_original.png"
+$srcFile = "$PSScriptRoot\..\design-assets\artwork\nocturne_eclipse_layers_original.png"
 $bmp = [System.Drawing.Bitmap]::FromFile($srcFile)
 
 # The center of the symbol is at (512, 512)
@@ -57,7 +57,7 @@ $gFg.Dispose()
 $cropBmp.Dispose()
 
 # Save Foreground
-$fgPath = "F:\Progects-Android-Studio\Nocturne\design-assets\ic_launcher_foreground_1080.png"
+$fgPath = "$PSScriptRoot\..\design-assets\artwork\ic_launcher_foreground_1080.png"
 $fg.Save($fgPath, [System.Drawing.Imaging.ImageFormat]::Png)
 Write-Host "Generated Foreground: $fgPath"
 
@@ -80,7 +80,7 @@ $pgb.Dispose()
 $path.Dispose()
 $gBg.Dispose()
 
-$bgPath = "F:\Progects-Android-Studio\Nocturne\design-assets\ic_launcher_background_1080.png"
+$bgPath = "$PSScriptRoot\..\design-assets\artwork\ic_launcher_background_1080.png"
 $bg.Save($bgPath, [System.Drawing.Imaging.ImageFormat]::Png)
 Write-Host "Generated Background: $bgPath"
 

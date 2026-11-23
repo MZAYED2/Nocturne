@@ -5,7 +5,18 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val generatedBridgeAssets = layout.buildDirectory.dir("generated/watch-assets")
+val stageBridgeAssets = tasks.register<Sync>("stageBridgeAssets") {
+    from(rootProject.layout.projectDirectory.dir("distribution")) {
+        include("Nocturne-Emerald-Push.apk", "catalog.json")
+    }
+    into(generatedBridgeAssets)
+}
+tasks.named("preBuild").configure { dependsOn(stageBridgeAssets) }
+
 android {
+    sourceSets.named("debug") { assets.directories.add(generatedBridgeAssets.get().asFile.path) }
+    sourceSets.named("release") { assets.directories.add(generatedBridgeAssets.get().asFile.path) }
     namespace = "com.mohamedzayed.nocturne.wear"
     compileSdk {
         version = release(37)
@@ -40,9 +51,24 @@ android {
 
     val resolvedStoreFile = if (keystoreEnvPath != null) rootProject.file(keystoreEnvPath) else rootProject.file(".signing/nocturne-release.jks")
 
+    val hasReleaseSigning = resolvedStoreFile.exists() && !keystorePasswordEnv.isNullOrEmpty() &&
+        !keyAliasEnv.isNullOrEmpty() && !keyPasswordEnv.isNullOrEmpty()
+
+    val requireReleaseSigning = tasks.register("requireReleaseSigning") {
+        inputs.property("releaseSigningConfigured", hasReleaseSigning)
+        doLast {
+            check(inputs.properties["releaseSigningConfigured"] == true) {
+                "Configure the permanent Nocturne signing key before building a release APK."
+            }
+        }
+    }
+    tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+        dependsOn(requireReleaseSigning)
+    }
+
     signingConfigs {
         create("release") {
-            if (resolvedStoreFile.exists() && !keystorePasswordEnv.isNullOrEmpty() && !keyAliasEnv.isNullOrEmpty() && !keyPasswordEnv.isNullOrEmpty()) {
+            if (hasReleaseSigning) {
                 storeFile = resolvedStoreFile
                 storePassword = keystorePasswordEnv
                 keyAlias = keyAliasEnv

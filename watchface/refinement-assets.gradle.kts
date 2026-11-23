@@ -14,6 +14,8 @@ val generateRefinedDial = tasks.register("generateRefinedDial") {
     val numeralFont = file("src/main/res/font/ref_serif.ttf")
     val functionalFont = file("src/main/res/font/functional_medium.ttf")
     val moonSourceFile = rootProject.file("tools/moon-source.jpg")
+    val appResDir = rootProject.file("app/src/main/res/drawable")
+    inputs.files(fileTree(appResDir) { include("lunar_*", "obsidian_*") })
     val generatedDirectory = refinedResources.get().asFile
     inputs.dir(originals)
     inputs.file(numeralFont)
@@ -295,126 +297,46 @@ val generateRefinedDial = tasks.register("generateRefinedDial") {
         for (phase in 0..28) {
             val smallMoon = generateSphericalMoon(224, phase, isSmall = true)
             save("refined_moon_" + phase.toString().padStart(2, '0'), smallMoon)
-
-            val bigMoon = generateSphericalMoon(920, phase, isSmall = false)
-            save("lunar_moon_" + phase.toString().padStart(2, '0'), bigMoon)
         }
 
-        // --- Generate Lunar Phase AOD Dial ---
-        val lunarAodDial = BufferedImage(1000, 1000, BufferedImage.TYPE_INT_ARGB)
-        val lg = lunarAodDial.createGraphics()
-        lg.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        lg.setRenderingHint(RenderingHints.KEY_TEXT_ANTIALIASING, RenderingHints.VALUE_TEXT_ANTIALIAS_ON)
-        val lunarDialBounds = mutableListOf<java.awt.geom.Rectangle2D>()
-        for (hour in 1..12) {
-            val glyph = font.createGlyphVector(lg.fontRenderContext, hour.toString())
-            val b = glyph.visualBounds
-            val angle = Math.toRadians(hour * 30.0 - 90.0)
-            val radius = if (hour >= 10) 418.0 else 432.0
-            val tx = 500 + cos(angle) * radius - b.centerX
-            val ty = 500 + sin(angle) * radius - b.centerY
-            lunarDialBounds += java.awt.geom.Rectangle2D.Double(b.x + tx - 8, b.y + ty - 8, b.width + 16, b.height + 16)
-            lg.color = Color(0xDC, 0xE3, 0xEA, 180)
-            lg.drawGlyphVector(glyph, tx.toFloat(), ty.toFloat())
-        }
-        for (minute in 0 until 60) {
-            val major = minute % 5 == 0
-            val angle = Math.toRadians(minute * 6.0 - 90)
-            val endRadius = 483.0
-            var startRadius = if (major) 461.0 else 470.0
-            val ex = 500 + cos(angle) * endRadius
-            val ey = 500 + sin(angle) * endRadius
-            while (lunarDialBounds.any { it.intersectsLine(500 + cos(angle) * startRadius, 500 + sin(angle) * startRadius, ex, ey) }) {
-                startRadius += 1
-                if (startRadius >= endRadius) break
+        // Process master assets for Lunar Phase (scaled to 450x450 Wear OS canonical) and Obsidian Atelier
+        if (appResDir.exists()) {
+            println("Processing master watch face assets from app/src/main/res/drawable...")
+            fun scaleImage(src: BufferedImage, targetW: Int, targetH: Int): BufferedImage {
+                val dest = BufferedImage(targetW, targetH, BufferedImage.TYPE_INT_ARGB)
+                val g = dest.createGraphics()
+                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BICUBIC)
+                g.setRenderingHint(RenderingHints.KEY_RENDERING, RenderingHints.VALUE_RENDER_QUALITY)
+                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
+                g.drawImage(src, 0, 0, targetW, targetH, null)
+                g.dispose()
+                return dest
             }
-            if (startRadius < endRadius) {
-                lg.stroke = BasicStroke(if (major) 4.5f else 2.2f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-                lg.color = if (major) Color(0xDC, 0xE3, 0xEA, 140) else Color(0x71, 0x80, 0x96, 95)
-                lg.draw(Line2D.Double(500 + cos(angle) * startRadius, 500 + sin(angle) * startRadius, ex, ey))
+
+            appResDir.listFiles()?.forEach { f ->
+                val name = f.name
+                if (name.startsWith("obsidian_")) {
+                    f.copyTo(output.resolve(name), overwrite = true)
+                } else if (name.startsWith("lunar_")) {
+                    val baseName = name.removeSuffix(".png")
+                    val src = ImageIO.read(f)
+                    val scaled = when {
+                        baseName.startsWith("lunar_moon_") || baseName == "lunar_markers" || baseName == "lunar_dial_aod" ->
+                            scaleImage(src, 450, 450)
+                        baseName == "lunar_hour" || baseName == "lunar_hour_aod" ->
+                            scaleImage(src, 22, 144)
+                        baseName == "lunar_minute" || baseName == "lunar_minute_aod" ->
+                            scaleImage(src, 20, 207)
+                        baseName == "lunar_second" ->
+                            scaleImage(src, 10, 234)
+                        baseName == "lunar_hub" ->
+                            scaleImage(src, 22, 22)
+                        else -> src
+                    }
+                    ImageIO.write(scaled, "png", output.resolve(name))
+                }
             }
         }
-        lg.dispose()
-        save("lunar_dial_aod", lunarAodDial)
-
-        // --- Generate Lunar Phase Hands with Dual Contrast ---
-        fun createLunarHand(w: Int, h: Int, isMinute: Boolean, isAmbient: Boolean): BufferedImage {
-            val hand = BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB)
-            val g = hand.createGraphics()
-            g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-
-            val tipY = 8.0
-            val pivotY = if (isMinute) h * 0.921053 else h * 0.892857
-            val tailY = h * 0.98
-            val midW = w * 0.78
-            val baseW = w * 0.52
-
-            val path = java.awt.geom.Path2D.Double()
-            path.moveTo(w / 2.0, tipY)
-            path.lineTo((w + midW) / 2.0, h * 0.25)
-            path.lineTo((w + baseW) / 2.0, pivotY)
-            path.lineTo((w + baseW * 0.6) / 2.0, tailY)
-            path.lineTo((w - baseW * 0.6) / 2.0, tailY)
-            path.lineTo((w - baseW) / 2.0, pivotY)
-            path.lineTo((w - midW) / 2.0, h * 0.25)
-            path.closePath()
-
-            // Outer dark charcoal border for contrast against bright lit moon
-            g.color = if (isAmbient) Color(0x10, 0x14, 0x18, 220) else Color(0x15, 0x18, 0x1D)
-            g.stroke = BasicStroke(4.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-            g.draw(path)
-
-            // Inner luminous moon-glow body for contrast against dark shadow moon
-            g.color = if (isAmbient) Color(0xDC, 0xE3, 0xEA, 220) else Color(0xF4, 0xF6, 0xF9)
-            g.fill(path)
-
-            // Center spine
-            g.color = if (isAmbient) Color(0x71, 0x80, 0x96, 120) else Color(0x94, 0xA3, 0xB8)
-            g.stroke = BasicStroke(1.5f)
-            g.draw(Line2D.Double(w / 2.0, tipY + 12, w / 2.0, pivotY - 10))
-
-            g.dispose()
-            return hand
-        }
-
-        val lunarHour = createLunarHand(80, 560, isMinute = false, isAmbient = false)
-        val lunarHourAod = createLunarHand(80, 560, isMinute = false, isAmbient = true)
-        val lunarMinute = createLunarHand(68, 760, isMinute = true, isAmbient = false)
-        val lunarMinuteAod = createLunarHand(68, 760, isMinute = true, isAmbient = true)
-
-        save("lunar_hour", lunarHour)
-        save("lunar_hour_aod", lunarHourAod)
-        save("lunar_minute", lunarMinute)
-        save("lunar_minute_aod", lunarMinuteAod)
-
-        // Lunar Second Hand
-        val lunarSec = BufferedImage(32, 790, BufferedImage.TYPE_INT_ARGB)
-        val sg = lunarSec.createGraphics()
-        sg.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        sg.color = Color(0x15, 0x18, 0x1D)
-        sg.stroke = BasicStroke(3.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-        sg.draw(Line2D.Double(16.0, 770.0, 16.0, 12.0))
-        sg.color = Color(0xFA, 0xFA, 0xFB)
-        sg.stroke = BasicStroke(2.0f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-        sg.draw(Line2D.Double(16.0, 770.0, 16.0, 60.0))
-        sg.color = Color(0xE5, 0x3E, 0x3E)
-        sg.stroke = BasicStroke(2.5f, BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND)
-        sg.draw(Line2D.Double(16.0, 60.0, 16.0, 12.0))
-        sg.dispose()
-        save("lunar_second", lunarSec)
-
-        // Lunar Center Hub
-        val lunarHub = BufferedImage(92, 92, BufferedImage.TYPE_INT_ARGB)
-        val hg = lunarHub.createGraphics()
-        hg.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON)
-        hg.color = Color(0x15, 0x18, 0x1D)
-        hg.fillOval(4, 4, 84, 84)
-        hg.color = Color(0xF4, 0xF6, 0xF9)
-        hg.fillOval(14, 14, 64, 64)
-        hg.color = Color(0x4A, 0x55, 0x68)
-        hg.fillOval(32, 32, 28, 28)
-        hg.dispose()
-        save("lunar_hub", lunarHub)
     }
 }
 tasks.named("preBuild").configure { dependsOn(generateRefinedDial) }

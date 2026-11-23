@@ -7,24 +7,19 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.os.Build
 import androidx.core.app.NotificationCompat
-import android.net.Uri
-import android.os.ParcelFileDescriptor
 import android.util.Log
 import com.google.android.gms.wearable.ChannelClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
 import com.google.android.gms.wearable.WearableListenerService
-import androidx.wear.watchfacepush.WatchFacePushManager
-import androidx.wear.watchfacepush.WatchFacePushManagerFactory
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.sync.withLock
 import org.json.JSONObject
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 
 class WatchFacePushListenerService : WearableListenerService() {
 
@@ -34,19 +29,10 @@ class WatchFacePushListenerService : WearableListenerService() {
         private const val TAG = "NocturneBridge"
         const val PATH_PING = "/nocturne/ping"
         const val PATH_PONG = "/nocturne/pong"
-        const val PATH_PREPARE_PUSH = "/nocturne/prepare_push"
-        const val PATH_READY_FOR_PUSH = "/nocturne/ready_for_push"
-        const val PATH_PUSH_CHANNEL = "/nocturne/push_channel"
+        const val PATH_PUSH_CHANNEL = "/nocturne/push_v2/"
+        private const val MAX_APK_BYTES = 150L * 1024 * 1024
         const val PATH_PUSH_RESULT = "/nocturne/push_result"
-        const val PATH_LIST = "/nocturne/list_installed"
-        const val PATH_SET_ACTIVE = "/nocturne/set_active"
-    }
-
-    private var pendingPackageName: String = "com.mohamedzayed.nocturne.wear.watchfacepush.nocturne"
-    private var pendingToken: String = ""
-    private var pendingFileSize: Long = 0L
-    private var pendingSetActive: Boolean = true
-    private var pendingSenderNodeId: String = ""
+     }
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
         val path = messageEvent.path
@@ -58,13 +44,43 @@ class WatchFacePushListenerService : WearableListenerService() {
             PATH_PING -> {
                 scope.launch {
                     try {
-                        val pushManager = WatchFacePushManagerFactory.createWatchFacePushManager(applicationContext)
-                        val listResponse = pushManager.listWatchFaces()
                         val responseJson = JSONObject().apply {
                             put("bridgeInstalled", true)
-                            put("version", "1.0.4")
-                            put("remainingSlots", listResponse.remainingSlotCount)
-                            put("installedCount", listResponse.installedWatchFaceDetails.size)
+                            put("version", BuildConfig.VERSION_NAME)
+                            put("versionCode", BuildConfig.VERSION_CODE)
+                            put("protocol", 2)
+                            put("requestId", String(messageEvent.data, Charsets.UTF_8))
+                        }
+                        val request = String(messageEvent.data, Charsets.UTF_8).split('|', limit = 3)
+                        if (request.size > 1) {
+                            val management = try {
+                                watchFaceInstallLock.withLock {
+                                    val manager = androidx.wear.watchfacepush.WatchFacePushManagerFactory.createWatchFacePushManager(applicationContext)
+                                    if (request[1] == "remove") {
+                                        val target = manager.listWatchFaces().installedWatchFaceDetails
+                                            .firstOrNull { it.packageName == request.getOrNull(2) }
+                                            ?: error("Watch face is not installed in a Nocturne slot")
+                                        check(!manager.isWatchFaceActive(target.packageName)) {
+                                            "Switch to another watch face on the watch before removing the active face."
+                                        }
+                                        manager.removeWatchFace(target.slotId)
+                                        check(manager.listWatchFaces().installedWatchFaceDetails.none { it.slotId == target.slotId }) {
+                                            "Wear OS did not confirm removal."
+                                        }
+                                    }
+                                    val slots = org.json.JSONArray()
+                                    manager.listWatchFaces().installedWatchFaceDetails.forEach { face ->
+                                        slots.put(JSONObject().put("package", face.packageName)
+                                            .put("active", manager.isWatchFaceActive(face.packageName)))
+                                    }
+                                    JSONObject().put("slots", slots)
+                                }
+                            } catch (e: kotlinx.coroutines.CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                JSONObject().put("error", e.localizedMessage ?: "Watch operation failed")
+                            }
+                            responseJson.put("management", management)
                         }
                         Wearable.getMessageClient(applicationContext)
                             .sendMessage(senderNodeId, PATH_PONG, responseJson.toString().toByteArray())
@@ -75,95 +91,6 @@ class WatchFacePushListenerService : WearableListenerService() {
                 }
             }
 
-            PATH_PREPARE_PUSH -> {
-                scope.launch {
-                    try {
-                        val req = JSONObject(String(messageEvent.data))
-                        pendingPackageName = req.optString("packageName", "com.mohamedzayed.nocturne.wear.watchfacepush.nocturne")
-                        pendingToken = req.getString("token")
-                        pendingFileSize = req.optLong("fileSize", 0L)
-                        pendingSetActive = req.optBoolean("setActive", true)
-                        pendingSenderNodeId = senderNodeId
-
-                        Log.i(TAG, "Prepared push metadata: pkg=$pendingPackageName, size=$pendingFileSize, setActive=$pendingSetActive")
-
-                        val tempApk = File(cacheDir, "incoming_pushed_wf.apk")
-                        if (tempApk.exists()) {
-                            tempApk.delete()
-                        }
-
-                        val reply = JSONObject().apply {
-                            put("ready", true)
-                            put("packageName", pendingPackageName)
-                        }
-                        Wearable.getMessageClient(applicationContext)
-                            .sendMessage(senderNodeId, PATH_READY_FOR_PUSH, reply.toString().toByteArray())
-                            .await()
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error in prepare push", e)
-                        sendPushResult(senderNodeId, "PREPARE", false, "فشل تجهيز استقبال الواجهة: ${e.message}", null, false)
-                    }
-                }
-            }
-
-            PATH_LIST -> {
-                scope.launch {
-                    try {
-                        val pushManager = WatchFacePushManagerFactory.createWatchFacePushManager(applicationContext)
-                        val listResponse = pushManager.listWatchFaces()
-                        val array = org.json.JSONArray()
-                        for (item in listResponse.installedWatchFaceDetails) {
-                            val isActive = try {
-                                pushManager.isWatchFaceActive(item.packageName)
-                            } catch (e: Exception) {
-                                false
-                            }
-                            array.put(JSONObject().apply {
-                                put("slotId", item.slotId)
-                                put("packageName", item.packageName)
-                                put("isActive", isActive)
-                            })
-                        }
-                        val result = JSONObject().apply {
-                            put("slots", array)
-                            put("remainingSlots", listResponse.remainingSlotCount)
-                        }
-                        Wearable.getMessageClient(applicationContext)
-                            .sendMessage(senderNodeId, PATH_LIST + "_reply", result.toString().toByteArray())
-                            .await()
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error listing watch faces", e)
-                    }
-                }
-            }
-
-            PATH_SET_ACTIVE -> {
-                scope.launch {
-                    try {
-                        val req = JSONObject(String(messageEvent.data))
-                        val slotId = req.getString("slotId")
-                        val pushManager = WatchFacePushManagerFactory.createWatchFacePushManager(applicationContext)
-                        pushManager.setWatchFaceAsActive(slotId)
-                        val reply = JSONObject().apply {
-                            put("success", true)
-                            put("slotId", slotId)
-                            put("isActive", true)
-                        }
-                        Wearable.getMessageClient(applicationContext)
-                            .sendMessage(senderNodeId, PATH_SET_ACTIVE + "_reply", reply.toString().toByteArray())
-                            .await()
-                    } catch (e: Exception) {
-                        Log.e(TAG, "Error setting watch face active", e)
-                        val reply = JSONObject().apply {
-                            put("success", false)
-                            put("error", e.message ?: "Unknown error")
-                        }
-                        Wearable.getMessageClient(applicationContext)
-                            .sendMessage(senderNodeId, PATH_SET_ACTIVE + "_reply", reply.toString().toByteArray())
-                            .await()
-                    }
-                }
-            }
         }
     }
 
@@ -172,59 +99,18 @@ class WatchFacePushListenerService : WearableListenerService() {
         Log.i(TAG, "Channel opened on path: $path from node: ${channel.nodeId}")
 
         if (path.startsWith(PATH_PUSH_CHANNEL)) {
-            val tempApk = File(cacheDir, "incoming_pushed_wf.apk")
-            if (tempApk.exists()) {
-                tempApk.delete()
+            val requestId = path.removePrefix(PATH_PUSH_CHANNEL)
+            if (runCatching { java.util.UUID.fromString(requestId).toString() }.getOrNull() != requestId) {
+                Wearable.getChannelClient(this).close(channel)
+                return
             }
-
-            val channelClient = Wearable.getChannelClient(applicationContext)
-            val fileUri = Uri.fromFile(tempApk)
-
-            Log.i(TAG, "Starting ChannelClient.receiveFile for $fileUri")
-            channelClient.receiveFile(channel, fileUri, false)
-                .addOnSuccessListener {
-                    Log.i(TAG, "receiveFile completed successfully! File size: ${tempApk.length()} bytes")
-                    scope.launch {
-                        processReceivedWatchFaceApk(tempApk, channel.nodeId)
-                    }
-                }
-                .addOnFailureListener { error ->
-                    Log.e(TAG, "ChannelClient.receiveFile failed", error)
-                    scope.launch {
-                        sendPushResult(
-                            targetNodeId = channel.nodeId,
-                            stage = "RECEIVE",
-                            success = false,
-                            errorMessage = "انقطعت قناة الاستقبال على الساعة: ${error.localizedMessage}",
-                            slotId = null,
-                            isActive = false
-                        )
-                    }
-                }
+            scope.launch { receiveWatchFace(channel, requestId) }
             return
         }
 
-        if (path == "/nocturne/update_bridge_channel") {
-            val updateApk = File(filesDir, "Nocturne-WearBridge-update.apk")
-            if (updateApk.exists()) updateApk.delete()
-
-            val channelClient = Wearable.getChannelClient(applicationContext)
-            val fileUri = Uri.fromFile(updateApk)
-
-            Log.i(TAG, "Starting ChannelClient.receiveFile for Bridge update: $fileUri")
-            channelClient.receiveFile(channel, fileUri, false)
-                .addOnSuccessListener {
-                    Log.i(TAG, "Bridge update received successfully! File size: ${updateApk.length()} bytes")
-                    notifyBridgeUpdateReady(updateApk)
-                }
-                .addOnFailureListener { error ->
-                    Log.e(TAG, "Failed to receive bridge update", error)
-                }
-            return
-        }
     }
 
-    private fun notifyBridgeUpdateReady(apkFile: File) {
+    private fun notifyBridgeUpdateReady() {
         val nm = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
@@ -257,162 +143,77 @@ class WatchFacePushListenerService : WearableListenerService() {
         nm.notify(3001, notification)
     }
 
-    private suspend fun processReceivedWatchFaceApk(apkFile: File, senderNodeId: String) {
-        // 1. Verify file integrity
-        if (!apkFile.exists() || apkFile.length() < 1_000_000L) {
-            val size = if (apkFile.exists()) apkFile.length() else 0L
-            Log.e(TAG, "Received file is invalid or too small: $size bytes")
-            sendPushResult(
-                targetNodeId = senderNodeId,
-                stage = "RECEIVE",
-                success = false,
-                errorMessage = "الحزمة المستلمة ناقصة أو تالفة ($size بايت)",
-                slotId = null,
-                isActive = false
-            )
-            return
-        }
-
-        // Verify ZIP magic header
-        val isZipValid = try {
-            FileInputStream(apkFile).use { fis ->
-                val magic = ByteArray(4)
-                fis.read(magic) == 4 &&
-                        magic[0] == 0x50.toByte() &&
-                        magic[1] == 0x4B.toByte() &&
-                        magic[2] == 0x03.toByte() &&
-                        magic[3] == 0x04.toByte()
-            }
-        } catch (_: Exception) {
-            false
-        }
-
-        if (!isZipValid) {
-            Log.e(TAG, "Received file does not have valid APK/ZIP header")
-            sendPushResult(
-                targetNodeId = senderNodeId,
-                stage = "VALIDATE",
-                success = false,
-                errorMessage = "الملف المستلم ليس حزمة APK صالحة",
-                slotId = null,
-                isActive = false
-            )
-            return
-        }
-
-        // 2. Install using WatchFacePushManager
-        Log.i(TAG, "Installing verified APK via WatchFacePushManager with token: $pendingToken")
-        val pushManager = WatchFacePushManagerFactory.createWatchFacePushManager(applicationContext)
-
-        val pfd = try {
-            ParcelFileDescriptor.open(apkFile, ParcelFileDescriptor.MODE_READ_ONLY)
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to open ParcelFileDescriptor", e)
-            sendPushResult(
-                targetNodeId = senderNodeId,
-                stage = "INSTALL",
-                success = false,
-                errorMessage = "فشل فتح ملف الواجهة: ${e.localizedMessage}",
-                slotId = null,
-                isActive = false
-            )
-            return
-        }
-
-        var finalSlotId: String? = null
-        var isNowActive = false
-
+    private suspend fun receiveWatchFace(channel: ChannelClient.Channel, requestId: String) {
+        val channels = Wearable.getChannelClient(this)
+        var stage = "RECEIVE"
+        val reply = JSONObject().put("success", false).put("isActive", false)
+        var apk: File? = null
         try {
-            val list = pushManager.listWatchFaces()
-            Log.i(TAG, "Current installed watch faces: ${list.installedWatchFaceDetails.size}, remainingSlots: ${list.remainingSlotCount}")
-
-            val existing = list.installedWatchFaceDetails.firstOrNull { it.packageName == pendingPackageName }
-
-            if (existing != null) {
-                Log.i(TAG, "Updating existing watch face in slot ${existing.slotId}")
-                pushManager.updateWatchFace(existing.slotId, pfd, pendingToken)
-                finalSlotId = existing.slotId
-            } else if (list.remainingSlotCount > 0) {
-                Log.i(TAG, "Adding new watch face")
-                val slot = pushManager.addWatchFace(pfd, pendingToken)
-                finalSlotId = slot.slotId
-            } else {
-                val replaceSlot = list.installedWatchFaceDetails.firstOrNull()?.slotId ?: "0"
-                Log.i(TAG, "No slots remaining, updating slot $replaceSlot")
-                pushManager.updateWatchFace(replaceSlot, pfd, pendingToken)
-                finalSlotId = replaceSlot
-            }
-
-            pfd.close()
-
-            // 3. Set Active if requested
-            if (pendingSetActive && finalSlotId != null) {
-                try {
-                    pushManager.setWatchFaceAsActive(finalSlotId)
-                    isNowActive = true
-                    Log.i(TAG, "Watch face set as active successfully in slot $finalSlotId")
-                } catch (e: Exception) {
-                    Log.w(TAG, "Could not set watch face as active (permission might be missing)", e)
-                    isNowActive = false
+            val tempApk = File.createTempFile("watchface-", ".apk", cacheDir)
+            apk = tempApk
+            val stream = channels.getInputStream(channel).await()
+            val metadata = kotlinx.coroutines.runInterruptible {
+                java.io.DataInputStream(stream.buffered()).use { input ->
+                    val request = JSONObject(input.readUTF())
+                    val size = request.getLong("fileSize")
+                    require(size in 1..MAX_APK_BYTES) { "حجم الحزمة غير مدعوم: $size" }
+                    val expectedHash = request.getString("sha256")
+                    require(Regex("[0-9a-f]{64}").matches(expectedHash)) { "بصمة SHA-256 غير صالحة" }
+                    val digest = java.security.MessageDigest.getInstance("SHA-256")
+                    tempApk.outputStream().buffered().use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        var remaining = size
+                        while (remaining > 0) {
+                            val count = input.read(buffer, 0, minOf(remaining, buffer.size.toLong()).toInt())
+                            if (count < 0) throw java.io.EOFException("وصل ${size - remaining} من $size بايت")
+                            output.write(buffer, 0, count)
+                            digest.update(buffer, 0, count)
+                            remaining -= count
+                        }
+                    }
+                    val actualHash = digest.digest().joinToString("") { "%02x".format(it) }
+                    check(tempApk.length() == size && actualHash == expectedHash) { "حجم الحزمة أو بصمة SHA-256 لا تتطابق" }
+                    check(input.read() == -1) { "استقبلت الساعة بيانات إضافية بعد نهاية الحزمة" }
+                    Log.i(TAG, "Verified $requestId bytes=$size sha256=$actualHash")
+                    reply.put("fileSize", size).put("sha256", actualHash)
+                    request
                 }
             }
-
-            sendPushResult(
-                targetNodeId = senderNodeId,
-                stage = "COMPLETE",
-                success = true,
-                errorMessage = null,
-                slotId = finalSlotId,
-                isActive = isNowActive
-            )
-
+            stage = "VALIDATE"
+            val packageName = metadata.getString("packageName")
+            reply.put("packageName", packageName)
+            if (metadata.optString("kind") == "bridge") {
+                check(packageName == applicationContext.packageName && isValidBridgeUpdate(this, tempApk)) {
+                    "تحديث WearBridge لا يطابق الحزمة أو التوقيع أو رقم الإصدار"
+                }
+                val update = File(filesDir, "Nocturne-WearBridge-update.apk")
+                watchFaceInstallLock.withLock {
+                    check(tempApk.renameTo(update)) { "تعذر حفظ حزمة تحديث الساعة" }
+                }
+                stage = "UPDATE_READY"
+                reply.put("success", true)
+                runCatching { notifyBridgeUpdateReady() }
+            } else {
+                installWatchFace(this, tempApk, metadata.getString("packageName"), metadata.getString("token"), requestId) { stage = it }
+                    .let { slotId -> reply.put("slotId", slotId).put("success", true).put("isActive", true) }
+            }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (e: Exception) {
-            Log.e(TAG, "WatchFacePushManager install failed", e)
-            pfd.close()
-            sendPushResult(
-                targetNodeId = senderNodeId,
-                stage = "INSTALL",
-                success = false,
-                errorMessage = "فشل تثبيت نظام Wear OS للواجهة: ${e.localizedMessage}",
-                slotId = null,
-                isActive = false
-            )
+            Log.e(TAG, "Push $requestId failed at $stage", e)
+            reply.put("error", e.localizedMessage ?: e.javaClass.simpleName)
         } finally {
-            if (apkFile.exists()) {
-                apkFile.delete()
-            }
+            apk?.delete()
         }
-    }
-
-    private suspend fun sendPushResult(
-        targetNodeId: String,
-        stage: String,
-        success: Boolean,
-        errorMessage: String?,
-        slotId: String?,
-        isActive: Boolean
-    ) {
-        val target = if (targetNodeId.isNotEmpty()) targetNodeId else pendingSenderNodeId
-        if (target.isEmpty()) {
-            Log.w(TAG, "Cannot send push result, targetNodeId is empty")
-            return
-        }
-
         try {
-            val reply = JSONObject().apply {
-                put("stage", stage)
-                put("success", success)
-                if (errorMessage != null) put("error", errorMessage)
-                if (slotId != null) put("slotId", slotId)
-                put("isActive", isActive)
-                put("packageName", pendingPackageName)
-            }
-            Log.i(TAG, "Sending push result to $target: $reply")
-            Wearable.getMessageClient(applicationContext)
-                .sendMessage(target, PATH_PUSH_RESULT, reply.toString().toByteArray())
+            reply.put("stage", stage)
+            Wearable.getMessageClient(this)
+                .sendMessage(channel.nodeId, "$PATH_PUSH_RESULT/$requestId", reply.toString().toByteArray())
                 .await()
         } catch (e: Exception) {
-            Log.e(TAG, "Error sending push result back to phone", e)
+            Log.e(TAG, "Could not deliver result for $requestId", e)
+        } finally {
+            channels.close(channel)
         }
     }
 }

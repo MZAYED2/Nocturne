@@ -1,6 +1,6 @@
 ﻿{
-    "version": 6,
-    "updated_at": "2026-11-21T00:48:00Z",
+    "version": 7,
+    "updated_at": "2026-11-21T13:30:00Z",
     "github_repo": "MZAYED2/Nocturne",
     "download_base_url": "https://github.com/MZAYED2/Nocturne/releases/latest/download",
     "watchfaces": [
@@ -8,57 +8,65 @@
             "id": "sage_nocturne",
             "name": "Sage Nocturne",
             "name_ar": "Sage Nocturne (العثماني الأخضر)",
-            "description": "Ottoman Sage Green heritage dial with engraved calligraphy, small moon phase, and active/AOD modes.",
-            "description_ar": "التصميم العثماني الأخضر الأصلي مع الزخرفة العثمانية، القمر الصغير، الذكر، والتعقيدات الثلاث.",
+            "description": "Ottoman Sage Green heritage dial with authentic arabesque, small moon phase, dhikr calligraphy, and 3 complications.",
+            "description_ar": "التصميم العثماني الأخضر الأصلي المسترجع بالكامل مع الزخرفة العثمانية، القمر الصغير، الذكر، والتعقيدات الثلاث.",
             "package_name": "com.mohamedzayed.nocturne.watchfacepush.sage",
-            "validation_token": "IdqTjyAYUMA73v4dV8y+qjrOtLxCiyXiGlfVgRtTf0U=:MS4wLjA=",
+            "validation_token": "kYFLcpyX+atPTOjj2hGB4P/qNOfxZLHbdOfowim+bm0=:MS4wLjA=",
             "apk_filename": "Nocturne-Sage-Push.apk",
             "download_url": "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Sage-Push.apk",
             "preview": "preview_sage.png",
             "version_code": 1007,
-            "version_name": "1.0.7"
+            "version_name": "1.0.7",
+            "sha256": "47e6ca812ed6e42555c2df0f4fd8c492a7dfff3b7fb124080d7b13bd77f1d0c9",
+            "size_bytes": 28167780
         },
         {
             "id": "lunar_phase",
             "name": "Lunar Phase",
-            "name_ar": "Lunar Phase (القمر السينمائي)",
-            "description": "Large poetic astronomical moon disc filling the watch display, with luminous dual-contrast hands and minimal AOD dial.",
-            "description_ar": "قمر سينمائي كبير يملأ 92% من الشاشة بإضاءة ثلاثية الأبعاد دقيقة فلكياً عبر 29 منزلة، مع عقارب بتباين مزدوج، وشاشة AOD سوداء موفرة للطاقة.",
+            "name_ar": "Lunar Phase (القمر الفلكي)",
+            "description": "Photorealistic Edge-to-Edge full moon disc from NASA 16-bit LROC data with astronomical lighting across 29 phases, applied faceted hour markers, and Haute Horlogerie hands.",
+            "description_ar": "قرص قمر واقعي يملأ الشاشة بالكامل Edge-to-Edge مأخوذ من بيانات NASA LROC الفضائية بدقة 16-bit عبر 29 طوراً فلكياً، مع علامات ساعات بارزة ثلاثية الأبعاد وعقارب دوفين فاخرة.",
             "package_name": "com.mohamedzayed.nocturne.watchfacepush.lunar",
-            "validation_token": "dao/NFBcjEunVaURIMcnxWnrl+cxEZX4EqCYODrWOUA=:MS4wLjA=",
+            "validation_token": "bMe5QuJpyuumD/AfCQthpZ8zWdnb/GRBqC6Puscpw+Q=:MS4wLjA=",
             "apk_filename": "Nocturne-Lunar-Push.apk",
             "download_url": "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Lunar-Push.apk",
             "preview": "preview_lunar.png",
             "version_code": 1007,
-            "version_name": "1.0.7"
+            "version_name": "1.0.7",
+            "sha256": "09cd46e4e92b82b45aebd7f50d235204c3c73c8ee6aa0fa2b4c0d30300da1b70",
+            "size_bytes": 28163684
         },
         {
             "id": "obsidian_atelier",
             "name": "Obsidian Atelier",
             "name_ar": "Obsidian Atelier (الميكانيكي الفاخر)",
-            "description": "Masterpiece Haute Horlogerie mechanical dial in Brushed Platinum and Smoked Graphite with Dauphine hands, Small Seconds subdial, Power Reserve indicator, and date window.",
-            "description_ar": "تصميم ميكانيكي كلاسيكي فاخر بلون البلاتين المصقول والجرافيت الدخاني، مع عقارب دوفين المركزية، عقرب الثواني الصغير عند 6، مؤشر احتياطي الطاقة عند 9، ونافذة التاريخ المشطوفة.",
+            "description": "Haute Horlogerie mechanical dial in Brushed Platinum, Soft Titanium, and Smoked Graphite (Zero Gold, No Branding) with Dauphine hands, Small Seconds, and Power Reserve.",
+            "description_ar": "تحفة ميكانيكية فاخرة بباليتة البلاتين المصقول والتيتانيوم والجرافيت المدخن (بدون ذهب وبدون شعارات) مع عقارب دوفين المشطوفة، عقرب الثواني الصغير، مؤشر احتياطي الطاقة، ونافذة التاريخ.",
             "package_name": "com.mohamedzayed.nocturne.watchfacepush.obsidian",
-            "validation_token": "83UIWxEtUdiLIBRfCFhE6jXi2vLUtqR07ksIIhNDBVQ=:MS4wLjA=",
+            "validation_token": "UnsQ7e2fp48oONVV1mMlM/Z6Z1ZB3+5jGQ2d//b/smo=:MS4wLjA=",
             "apk_filename": "Nocturne-Obsidian-Push.apk",
             "download_url": "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Obsidian-Push.apk",
             "preview": "preview_obsidian.png",
             "version_code": 1007,
-            "version_name": "1.0.7"
+            "version_name": "1.0.7",
+            "sha256": "b52311852823a0aa058f48ff292deade92da47631316dfc077ef65be0c44e88c",
+            "size_bytes": 28163684
         },
         {
             "id": "emerald_nocturne",
             "name": "Emerald Nocturne",
             "name_ar": "Emerald Nocturne (الزمردي الإمبراطوري)",
             "description": "Imperial Emerald and Gold edition with ornate Ottoman pattern, golden hands, and emerald accents.",
-            "description_ar": "الإصدار الزمردي والذهبي الإمبراطوري بتعديل بصري واضح وعقارب ذهبية لاختبار وتأكيد التحديث اللاسلكي.",
+            "description_ar": "الإصدار الزمردي والذهبي الإمبراطوري مع عقارب ذهبية وتصميم عثماني متكامل.",
             "package_name": "com.mohamedzayed.nocturne.watchfacepush.emerald",
-            "validation_token": "sMLoWBoGfIMY43GjCCXhl2VAQdgjWgcmEDuuEeBvWX4=:MS4wLjA=",
+            "validation_token": "lyX62n+ITbqlct0baDe8JOev+oAh4+zfKt+jSN+cipg=:MS4wLjA=",
             "apk_filename": "Nocturne-Emerald-Push.apk",
             "download_url": "https://github.com/MZAYED2/Nocturne/releases/latest/download/Nocturne-Emerald-Push.apk",
             "preview": "preview_emerald.png",
             "version_code": 1007,
-            "version_name": "1.0.7"
+            "version_name": "1.0.7",
+            "sha256": "7d05a0c36ac28c3a790092d0494d4ba53dacefa2a7062f8a94cc17b41080dcc3",
+            "size_bytes": 28167780
         }
     ]
 }

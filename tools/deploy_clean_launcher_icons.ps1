@@ -16,8 +16,8 @@ $destY = [int]((1080 - $targetSize) / 2)
 $g.DrawImage($emblem, $destX, $destY, $targetSize, $targetSize)
 $g.Dispose()
 
-$fgPathApp = "F:\Progects-Android-Studio\Nocturne\app\src\main\res\drawable\ic_launcher_foreground.png"
-$fgPathWear = "F:\Progects-Android-Studio\Nocturne\wear-bridge\src\main\res\drawable\ic_launcher_foreground.png"
+$fgPathApp = "$PSScriptRoot\..\app\src\main\res\drawable\ic_launcher_foreground.png"
+$fgPathWear = "$PSScriptRoot\..\wear-bridge\src\main\res\drawable\ic_launcher_foreground.png"
 $fg1080.Save($fgPathApp, [System.Drawing.Imaging.ImageFormat]::Png)
 $fg1080.Save($fgPathWear, [System.Drawing.Imaging.ImageFormat]::Png)
 
@@ -31,8 +31,8 @@ $densities = @(
 )
 
 $modules = @(
-    "F:\Progects-Android-Studio\Nocturne\app\src\main\res",
-    "F:\Progects-Android-Studio\Nocturne\wear-bridge\src\main\res"
+    "$PSScriptRoot\..\app\src\main\res",
+    "$PSScriptRoot\..\wear-bridge\src\main\res"
 )
 
 foreach ($mod in $modules) {

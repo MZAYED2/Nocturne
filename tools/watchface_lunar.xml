@@ -1,9 +1,9 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
-<WatchFace clipShape="CIRCLE" width="1000" height="1000">
+<WatchFace clipShape="CIRCLE" width="450" height="450">
     <Metadata key="CLOCK_TYPE" value="ANALOG"/>
     <Scene backgroundColor="#ff000000">
         <!-- Active Big Moon dial (hidden in ambient) -->
-        <Group name="active_lunar" x="0" y="0" width="1000" height="1000">
+        <Group name="active_lunar" x="0" y="0" width="450" height="450">
             <Variant mode="AMBIENT" target="alpha" value="0"/>
             <Condition>
                 <Expressions>
@@ -36,62 +36,66 @@
                     <Expression name="lmoon26">[MOON_PHASE_POSITION] &lt; 26.5</Expression>
                     <Expression name="lmoon27">[MOON_PHASE_POSITION] &lt; 27.5</Expression>
                 </Expressions>
-                <Compare expression="lmoon0"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_00"/></PartImage></Compare>
-                <Compare expression="lmoon1"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_01"/></PartImage></Compare>
-                <Compare expression="lmoon2"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_02"/></PartImage></Compare>
-                <Compare expression="lmoon3"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_03"/></PartImage></Compare>
-                <Compare expression="lmoon4"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_04"/></PartImage></Compare>
-                <Compare expression="lmoon5"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_05"/></PartImage></Compare>
-                <Compare expression="lmoon6"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_06"/></PartImage></Compare>
-                <Compare expression="lmoon7"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_07"/></PartImage></Compare>
-                <Compare expression="lmoon8"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_08"/></PartImage></Compare>
-                <Compare expression="lmoon9"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_09"/></PartImage></Compare>
-                <Compare expression="lmoon10"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_10"/></PartImage></Compare>
-                <Compare expression="lmoon11"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_11"/></PartImage></Compare>
-                <Compare expression="lmoon12"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_12"/></PartImage></Compare>
-                <Compare expression="lmoon13"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_13"/></PartImage></Compare>
-                <Compare expression="lmoon14"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_14"/></PartImage></Compare>
-                <Compare expression="lmoon15"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_15"/></PartImage></Compare>
-                <Compare expression="lmoon16"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_16"/></PartImage></Compare>
-                <Compare expression="lmoon17"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_17"/></PartImage></Compare>
-                <Compare expression="lmoon18"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_18"/></PartImage></Compare>
-                <Compare expression="lmoon19"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_19"/></PartImage></Compare>
-                <Compare expression="lmoon20"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_20"/></PartImage></Compare>
-                <Compare expression="lmoon21"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_21"/></PartImage></Compare>
-                <Compare expression="lmoon22"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_22"/></PartImage></Compare>
-                <Compare expression="lmoon23"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_23"/></PartImage></Compare>
-                <Compare expression="lmoon24"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_24"/></PartImage></Compare>
-                <Compare expression="lmoon25"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_25"/></PartImage></Compare>
-                <Compare expression="lmoon26"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_26"/></PartImage></Compare>
-                <Compare expression="lmoon27"><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_27"/></PartImage></Compare>
-                <Default><PartImage x="40" y="40" width="920" height="920"><Image resource="lunar_moon_28"/></PartImage></Default>
+                <Compare expression="lmoon0"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_00"/></PartImage></Compare>
+                <Compare expression="lmoon1"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_01"/></PartImage></Compare>
+                <Compare expression="lmoon2"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_02"/></PartImage></Compare>
+                <Compare expression="lmoon3"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_03"/></PartImage></Compare>
+                <Compare expression="lmoon4"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_04"/></PartImage></Compare>
+                <Compare expression="lmoon5"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_05"/></PartImage></Compare>
+                <Compare expression="lmoon6"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_06"/></PartImage></Compare>
+                <Compare expression="lmoon7"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_07"/></PartImage></Compare>
+                <Compare expression="lmoon8"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_08"/></PartImage></Compare>
+                <Compare expression="lmoon9"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_09"/></PartImage></Compare>
+                <Compare expression="lmoon10"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_10"/></PartImage></Compare>
+                <Compare expression="lmoon11"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_11"/></PartImage></Compare>
+                <Compare expression="lmoon12"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_12"/></PartImage></Compare>
+                <Compare expression="lmoon13"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_13"/></PartImage></Compare>
+                <Compare expression="lmoon14"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_14"/></PartImage></Compare>
+                <Compare expression="lmoon15"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_15"/></PartImage></Compare>
+                <Compare expression="lmoon16"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_16"/></PartImage></Compare>
+                <Compare expression="lmoon17"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_17"/></PartImage></Compare>
+                <Compare expression="lmoon18"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_18"/></PartImage></Compare>
+                <Compare expression="lmoon19"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_19"/></PartImage></Compare>
+                <Compare expression="lmoon20"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_20"/></PartImage></Compare>
+                <Compare expression="lmoon21"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_21"/></PartImage></Compare>
+                <Compare expression="lmoon22"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_22"/></PartImage></Compare>
+                <Compare expression="lmoon23"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_23"/></PartImage></Compare>
+                <Compare expression="lmoon24"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_24"/></PartImage></Compare>
+                <Compare expression="lmoon25"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_25"/></PartImage></Compare>
+                <Compare expression="lmoon26"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_26"/></PartImage></Compare>
+                <Compare expression="lmoon27"><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_27"/></PartImage></Compare>
+                <Default><PartImage x="0" y="0" width="450" height="450"><Image resource="lunar_moon_28"/></PartImage></Default>
             </Condition>
+            <!-- 12 Applied Faceted Hour Markers overlay on dynamic moon -->
+            <PartImage x="0" y="0" width="450" height="450">
+                <Image resource="lunar_markers"/>
+            </PartImage>
         </Group>
 
         <!-- Active Hands -->
-        <Group name="active_hands" x="0" y="0" width="1000" height="1000">
+        <Group name="active_hands" x="0" y="0" width="450" height="450">
             <Variant mode="AMBIENT" target="alpha" value="0"/>
-            <AnalogClock x="0" y="0" width="1000" height="1000">
-                <HourHand resource="lunar_hour" x="480" y="250" width="40" height="280" pivotX="0.5" pivotY="0.8928571428571429"/>
-                <MinuteHand resource="lunar_minute" x="483" y="150" width="34" height="380" pivotX="0.5" pivotY="0.9210526315789473"/>
-                <SecondHand resource="lunar_second" x="492" y="140" width="16" height="395" pivotX="0.5" pivotY="0.9113924050632911"/>
+            <AnalogClock x="0" y="0" width="450" height="450">
+                <HourHand resource="lunar_hour" x="214" y="101" width="22" height="144" pivotX="0.5" pivotY="0.861111"/>
+                <MinuteHand resource="lunar_minute" x="215" y="38" width="20" height="207" pivotX="0.5" pivotY="0.903382"/>
+                <SecondHand resource="lunar_second" x="220" y="29" width="10" height="234" pivotX="0.5" pivotY="0.837607"/>
             </AnalogClock>
-            <PartImage x="483" y="483" width="34" height="34">
+            <PartImage x="214" y="214" width="22" height="22">
                 <Image resource="lunar_hub"/>
             </PartImage>
         </Group>
 
         <!-- Ambient (AOD) Mode -->
-        <Group name="ambient" x="0" y="0" width="1000" height="1000" alpha="0">
+        <Group name="ambient" x="0" y="0" width="450" height="450" alpha="0">
             <Variant mode="AMBIENT" target="alpha" value="255"/>
-            <PartImage x="0" y="0" width="1000" height="1000">
+            <PartImage x="0" y="0" width="450" height="450">
                 <Image resource="lunar_dial_aod"/>
             </PartImage>
-            <AnalogClock x="0" y="0" width="1000" height="1000">
-                <HourHand resource="lunar_hour_aod" x="480" y="250" width="40" height="280" pivotX="0.5" pivotY="0.8928571428571429"/>
-                <MinuteHand resource="lunar_minute_aod" x="483" y="150" width="34" height="380" pivotX="0.5" pivotY="0.9210526315789473"/>
+            <AnalogClock x="0" y="0" width="450" height="450">
+                <HourHand resource="lunar_hour_aod" x="214" y="101" width="22" height="144" pivotX="0.5" pivotY="0.861111"/>
+                <MinuteHand resource="lunar_minute_aod" x="215" y="38" width="20" height="207" pivotX="0.5" pivotY="0.903382"/>
             </AnalogClock>
-            <PartImage x="483" y="483" width="34" height="34">
+            <PartImage x="214" y="214" width="22" height="22">
                 <Image resource="lunar_hub"/>
             </PartImage>
         </Group>

@@ -23,3 +23,11 @@ local.properties
 *.jks
 *.keystore
 .signing/
+
+# Legacy archives (historical reference only)
+/legacy-projects/
+
+# Bytecode & intermediate tool outputs
+*.class
+tools/experimental_lunar/
+

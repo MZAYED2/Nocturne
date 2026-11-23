@@ -53,16 +53,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.google.android.gms.wearable.ChannelClient
 import com.google.android.gms.wearable.MessageClient
-import com.google.android.gms.wearable.MessageEvent
-import com.google.android.gms.wearable.PutDataMapRequest
 import com.google.android.gms.wearable.Wearable
 import com.mohamedzayed.nocturne.ui.theme.NocturneTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -80,7 +76,6 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Calendar
 import java.util.Date
-import kotlin.coroutines.resume
 import kotlin.math.*
 
 enum class DisplayMode {
@@ -100,7 +95,9 @@ data class WatchFaceItem(
     val downloadUrl: String,
     val preview: String,
     val versionCode: Int,
-    val versionName: String
+    val versionName: String,
+    val sha256: String = "",
+    val sizeBytes: Long = 0
 )
 
 sealed class PushState {
@@ -113,6 +110,10 @@ sealed class PushState {
     data class Success(val message: String, val slotId: String?) : PushState()
     data class Error(val stage: String, val message: String, val hint: String) : PushState()
 }
+
+private fun PushState.isInProgress(): Boolean =
+    this is PushState.Downloading || this is PushState.Validating || this is PushState.Connecting ||
+        this is PushState.Transferring || this is PushState.Installing
 
 data class ColorOption(val id: String, val nameAr: String, val color: Color)
 data class AccentOption(val id: String, val nameAr: String, val color: Color)
@@ -271,6 +272,19 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
 
     var pushState by remember { mutableStateOf<PushState>(PushState.Idle) }
     var showInstructionsDialog by remember { mutableStateOf(false) }
+    val library = remember { ThemeLibrary(context.applicationContext) }
+    var showThemeManager by remember { mutableStateOf(false) }
+    var showComplications by remember { mutableStateOf(false) }
+    var editingPreset by remember { mutableStateOf<String?>(null) }
+    fun settings() = DialSettings(selectedBackground.id, selectedAccent.id, selectedOrnament, selectedDial, displayMode == DisplayMode.AOD)
+    fun loadSettings(settings: DialSettings) {
+        selectedBackground = backgroundOptions.first { it.id == settings.background }
+        selectedAccent = accentOptions.first { it.id == settings.accent }
+        selectedOrnament = settings.ornament
+        selectedDial = settings.dial
+        displayMode = if (settings.aodPreview) DisplayMode.AOD else DisplayMode.ACTIVE
+    }
+    val preset = library.presets.firstOrNull { it.id == editingPreset && it.parent == selectedItem.id }
 
     LaunchedEffect(Unit) {
         val loadedLocal = loadCatalogFromAssets(context)
@@ -280,8 +294,8 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
         }
         val remoteCatalog = fetchRemoteCatalog()
         if (remoteCatalog.isNotEmpty()) {
-            catalog = remoteCatalog
-            val currentSelected = remoteCatalog.firstOrNull { it.id == selectedItem.id }
+            catalog = mergeWatchCatalog(catalog, remoteCatalog)
+            val currentSelected = catalog.firstOrNull { it.id == selectedItem.id }
             if (currentSelected != null) {
                 selectedItem = currentSelected
             }
@@ -289,32 +303,16 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
     }
 
     LaunchedEffect(Unit) {
-        try {
-            val nodeClient = Wearable.getNodeClient(context)
-            val nodes = nodeClient.connectedNodes.await()
-            if (nodes.isNotEmpty()) {
-                val node = nodes[0]
-                isConnectedToWatch = true
-                connectedWatchName = node.displayName
-
-                val messageClient = Wearable.getMessageClient(context)
-                val pingListener = object : MessageClient.OnMessageReceivedListener {
-                    override fun onMessageReceived(event: MessageEvent) {
-                        if (event.path == "/nocturne/pong") {
-                            isBridgeActive = true
-                            messageClient.removeListener(this)
-                        }
-                    }
-                }
-                messageClient.addListener(pingListener)
-                try {
-                    messageClient.sendMessage(node.id, "/nocturne/ping", ByteArray(0)).await()
-                } catch (_: Exception) {}
-            } else {
-                isConnectedToWatch = false
+        while (true) {
+            val bridge = try {
+                findWatchBridge(context)
+            } catch (e: com.google.android.gms.common.api.ApiException) {
+                null
             }
-        } catch (_: Exception) {
-            isConnectedToWatch = false
+            isConnectedToWatch = bridge != null
+            connectedWatchName = bridge?.node?.displayName.orEmpty()
+            isBridgeActive = bridge?.protocol == WATCH_TRANSFER_PROTOCOL
+            delay(8000)
         }
     }
 
@@ -341,6 +339,34 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 .padding(horizontal = 20.dp, vertical = 16.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            TextButton(onClick = { showThemeManager = true }) { Text("Theme Manager") }
+            preset?.let { activePreset ->
+                Text("Customize · ${activePreset.name}", color = Color.White)
+                Text(
+                    if (settings() == activePreset.settings) "Saved preset" else "Unsaved preview changes",
+                    color = Color(0xFFB5C0CE)
+                )
+                Text(
+                    if (selectedItem.id == "sage_nocturne")
+                        "Watch-supported preset: Navy background with the original dial, ornaments and palette. Save before applying."
+                    else "This preset is preview-only. Use Edit on the watch for options exposed by the master.",
+                    color = Color(0xFFB5C0CE)
+                )
+                Row {
+                    TextButton(onClick = {
+                        library.save(activePreset.copy(settings = settings(), modified = System.currentTimeMillis()))
+                    }) { Text("Save preset") }
+                    TextButton(onClick = { loadSettings(activePreset.settings) }) { Text("Reset changes") }
+                }
+                if (selectedItem.id == "sage_nocturne") {
+                    TextButton(onClick = { loadSettings(DialSettings(background = "navy", aodPreview = displayMode == DisplayMode.AOD)) }) {
+                        Text("Use Navy background")
+                    }
+                }
+                TextButton(onClick = { loadSettings(activePreset.defaults) }) { Text("Restore saved defaults") }
+            }
+            TextButton(onClick = { showComplications = true }) { Text("Complications") }
+
             // App Header
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -356,7 +382,7 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                         letterSpacing = 2.sp
                     )
                     Text(
-                        text = "v${UpdateManager.currentVersionName} • Galaxy Watch 5",
+                        text = "v${UpdateManager.currentVersionName}",
                         color = Color(0xFF8A99A8),
                         fontSize = 11.sp
                     )
@@ -576,7 +602,7 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "مكتبة واجهات Nocturne (${catalog.size})",
+                    text = "مكتبة واجهات Nocturne (${catalog.count { it.id !in library.hidden }})",
                     color = Color(0xFFBAC7D5),
                     fontSize = 14.sp,
                     fontWeight = FontWeight.SemiBold
@@ -587,7 +613,8 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                         coroutineScope.launch {
                             val refreshed = fetchRemoteCatalog()
                             if (refreshed.isNotEmpty()) {
-                                catalog = refreshed
+                                catalog = mergeWatchCatalog(catalog, refreshed)
+                                selectedItem = catalog.firstOrNull { it.id == selectedItem.id } ?: selectedItem
                                 snackbarHostState.showSnackbar("✓ تم تحديث قائمة الواجهات من GitHub بنجاح!")
                             } else {
                                 snackbarHostState.showSnackbar("تعذر الاتصال بـ GitHub، استخدام القائمة المحلية.")
@@ -603,10 +630,17 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            catalog.forEach { item ->
+            catalog.filterNot { it.id in library.hidden }.forEach { item ->
                 val isSelected = selectedItem.id == item.id
                 Surface(
-                    onClick = { selectedItem = item },
+                    onClick = {
+                    if (!pushState.isInProgress()) {
+                        selectedItem = item
+                        editingPreset = null
+                        loadSettings(DialSettings())
+                        pushState = PushState.Idle
+                    }
+                },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 4.dp),
@@ -930,18 +964,29 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
                 else -> {}
             }
 
-            val isBusy = pushState is PushState.Downloading ||
-                    pushState is PushState.Validating ||
-                    pushState is PushState.Connecting ||
-                    pushState is PushState.Transferring ||
-                    pushState is PushState.Installing
+            val isBusy = pushState.isInProgress()
 
             Button(
                 onClick = {
+                    val applyPreset = preset
+                    val settingsSaved = applyPreset == null || settings().copy(aodPreview = false) ==
+                        applyPreset.settings.copy(aodPreview = false)
+                    pushState = PushState.Validating("جاري تجهيز الواجهة...")
                     coroutineScope.launch {
+                        val target = try {
+                            if (applyPreset == null) selectedItem else {
+                                check(settingsSaved) { "Save appearance changes before applying this preset." }
+                                withContext(Dispatchers.IO) { resolveStudioVariant(context, selectedItem, applyPreset) }
+                            }
+                        } catch (e: kotlinx.coroutines.CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            pushState = PushState.Error("PRESET", e.localizedMessage ?: "Preset unavailable", "")
+                            return@launch
+                        }
                         applyWatchFaceDirectly(
                             context = context,
-                            item = selectedItem,
+                            item = target,
                             onStateChange = { pushState = it },
                             onSuccess = { msg, slotId ->
                                 pushState = PushState.Success(msg, slotId)
@@ -1058,6 +1103,35 @@ fun NocturneScreen(modifier: Modifier = Modifier, initialOpenUpdates: Boolean = 
         )
     }
 
+    if (showThemeManager) {
+        ThemeManagerDialog(catalog, library, onOpen = { chosen ->
+            catalog.firstOrNull { it.id == chosen.parent }?.let { parent ->
+                selectedItem = parent
+                editingPreset = chosen.id
+                loadSettings(chosen.settings)
+                showThemeManager = false
+                coroutineScope.launch { scrollState.scrollTo(0) }
+            }
+        }, onClose = { showThemeManager = false })
+    }
+    if (showComplications) {
+        AlertDialog(
+            onDismissRequest = { showComplications = false },
+            title = { Text("Complications · ${selectedItem.name}") },
+            text = {
+                Column {
+                    if (selectedItem.id in setOf("sage_nocturne", "emerald_nocturne")) {
+                        Text("Native slots: left, right, and steps. Each accepts short text, ranged values, monochrome or small images, and Empty.")
+                        Text("On the watch, touch and hold the active face, tap Edit, then tap a complication slot to choose an available compatible provider.")
+                    } else {
+                        Text("This master exposes no editable native complication slots.")
+                    }
+                    Text("The astronomical moon is drawn by the face. System data sources are chosen on the watch.")
+                }
+            },
+            confirmButton = { TextButton(onClick = { showComplications = false }) { Text("Done") } }
+        )
+    }
     if (showUpdateCenterDialog) {
         UpdateCenterDialog(
             initialRelease = latestReleaseInfo,
@@ -1084,7 +1158,13 @@ suspend fun applyWatchFaceDirectly(
         onStateChange(PushState.Validating("فحص توفر حزمة ${item.name} محلياً..."))
         val apkFile = File(context.cacheDir, item.apkFilename)
 
-        var isFileReady = isApkFileValid(apkFile)
+        fun matchesCatalog(): Boolean {
+            if (!isApkFileValid(apkFile)) return false
+            if (item.sizeBytes > 0 && apkFile.length() != item.sizeBytes) return false
+            if (item.sha256.isNotEmpty() && !watchApkSha256(apkFile).equals(item.sha256, ignoreCase = true)) return false
+            return context.packageManager.getPackageArchiveInfo(apkFile.absolutePath, 0)?.packageName == item.packageName
+        }
+        var isFileReady = matchesCatalog()
 
         if (!isFileReady) {
             // Check bundled assets
@@ -1097,12 +1177,13 @@ suspend fun applyWatchFaceDirectly(
                             input.copyTo(output)
                         }
                     }
-                    isFileReady = isApkFileValid(apkFile)
+                    isFileReady = matchesCatalog()
                 }
             } catch (_: Exception) {}
         }
 
         if (!isFileReady) {
+            check(item.downloadUrl.isNotBlank()) { "The validated preset package is missing or damaged." }
             // Download from GitHub Release with multi-redirect loop
             onStateChange(PushState.Downloading(0.02f, "1/5: جاري تنزيل ${item.name} من GitHub..."))
             val dlResult = downloadApkWithValidation(
@@ -1134,7 +1215,7 @@ suspend fun applyWatchFaceDirectly(
 
         // Final verification of APK integrity
         onStateChange(PushState.Validating("2/5: التحقق من سلامة الحزمة والترويسة..."))
-        if (!isApkFileValid(apkFile)) {
+        if (!matchesCatalog()) {
             apkFile.delete()
             onError(
                 "VALIDATE",
@@ -1144,183 +1225,172 @@ suspend fun applyWatchFaceDirectly(
             return@withContext
         }
 
-        // ---------------------------------------------------------
-        // STAGE 3: Connected Watch Discovery & Bridge Handshake
-        // ---------------------------------------------------------
-        onStateChange(PushState.Connecting("3/5: البحث عن ساعة Galaxy Watch 5..."))
-        val nodeClient = Wearable.getNodeClient(context)
-        val nodes = nodeClient.connectedNodes.await()
-        if (nodes.isEmpty()) {
-            onError(
-                "CONNECT",
-                "لم يتم العثور على ساعة متصلة بالبلوتوث",
-                "تأكد من اقتران Galaxy Watch 5 عبر تطبيق Galaxy Wearable وتشغيل البلوتوث"
-            )
+        onStateChange(PushState.Connecting("3/5: البحث عن Nocturne Bridge على ساعة متصلة..."))
+        val bridge = findWatchBridge(context)
+        if (bridge == null) {
+            onError("CONNECT", "لم ترد ساعة متصلة عليها Nocturne Bridge", "افتح Nocturne Bridge على الساعة وتحقق من اقترانها")
             return@withContext
         }
-        val targetNode = nodes[0]
-
-        // Handshake: Ping Bridge
-        val messageClient = Wearable.getMessageClient(context)
-        var bridgeResponding = false
-        val pingListener = object : MessageClient.OnMessageReceivedListener {
-            override fun onMessageReceived(event: MessageEvent) {
-                if (event.path == "/nocturne/pong") {
-                    bridgeResponding = true
-                }
-            }
-        }
-        messageClient.addListener(pingListener)
-        try {
-            messageClient.sendMessage(targetNode.id, "/nocturne/ping", ByteArray(0)).await()
-            // Wait up to 3.5s for bridge pong
-            var waited = 0
-            while (!bridgeResponding && waited < 35) {
-                delay(100)
-                waited++
-            }
-        } catch (_: Exception) {}
-        messageClient.removeListener(pingListener)
-
-        if (!bridgeResponding) {
-            onError(
-                "CONNECT",
-                "برنامج الربط (Nocturne-WearBridge) غير نشط على الساعة",
-                "تأكد من تثبيت Nocturne-WearBridge-v1.0.4.apk على الساعة عبر GeminiMan وافتحه مرة واحدة"
-            )
+        if (bridge.protocol != WATCH_TRANSFER_PROTOCOL) {
+            onError("COMPATIBILITY", "إصدار WearBridge ${bridge.version} غير متوافق", "حدّث تطبيق WearBridge على الساعة ثم أعد المحاولة")
             return@withContext
         }
 
-        // Send metadata prepare message
-        onStateChange(PushState.Connecting("3/5: مصافحة تجهيز النقل مع الساعة..."))
-        val preparePayload = JSONObject().apply {
-            put("packageName", item.packageName)
-            put("token", item.validationToken)
-            put("apkFilename", item.apkFilename)
-            put("fileSize", apkFile.length())
-            put("setActive", true)
-        }
-
-        var readyForPush = false
-        val readyListener = object : MessageClient.OnMessageReceivedListener {
-            override fun onMessageReceived(event: MessageEvent) {
-                if (event.path == "/nocturne/ready_for_push") {
-                    readyForPush = true
-                }
+        val reply = try {
+            transferVerifiedWatchApk(context, bridge, apkFile, item.packageName, "watchface", item.validationToken) { sent ->
+                if (sent) onStateChange(PushState.Installing("5/5: انتظار التحقق والتثبيت والتفعيل على الساعة..."))
+                else onStateChange(PushState.Transferring(0.1f, "4/5: نقل الحزمة إلى ${bridge.node.displayName}..."))
             }
-        }
-        messageClient.addListener(readyListener)
-        try {
-            messageClient.sendMessage(targetNode.id, "/nocturne/prepare_push", preparePayload.toString().toByteArray()).await()
-            var waited = 0
-            while (!readyForPush && waited < 40) {
-                delay(100)
-                waited++
-            }
-        } catch (_: Exception) {}
-        messageClient.removeListener(readyListener)
-
-        // ---------------------------------------------------------
-        // STAGE 4: Channel File Transfer via ChannelClient
-        // ---------------------------------------------------------
-        val mbSize = apkFile.length() / (1024 * 1024)
-        onStateChange(PushState.Transferring(0.1f, "4/5: جاري نقل حزمة الواجهة ($mbSize MB) للساعة عبر البلوتوث..."))
-
-        val channelClient = Wearable.getChannelClient(context)
-        val channel = channelClient.openChannel(targetNode.id, "/nocturne/push_channel").await()
-
-        try {
-            val fileUri = Uri.fromFile(apkFile)
-            Log.i("NocturnePhone", "Sending file via channelClient.sendFile: $fileUri")
-            channelClient.sendFile(channel, fileUri).await()
-            Log.i("NocturnePhone", "sendFile completed successfully!")
-            onStateChange(PushState.Transferring(1.0f, "4/5: اكتمل نقل الملف، جاري استلام وتثبيت الواجهة..."))
-        } catch (e: Exception) {
-            Log.e("NocturnePhone", "sendFile failed", e)
-            try { channelClient.close(channel).await() } catch (_: Exception) {}
-            onError(
-                "TRANSFER",
-                "انقطعت قناة الاتصال أثناء نقل الملف: ${e.localizedMessage}",
-                "تأكد من بقاء شاشة الساعة مضاءة وقربها من الهاتف ثم أعد المحاولة"
-            )
+        } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
+            onError("TIMEOUT", "لم تؤكد الساعة اكتمال العملية", "تحقق من الاتصال ومن واجهة الساعة قبل إعادة المحاولة")
             return@withContext
         }
-
-        // ---------------------------------------------------------
-        // STAGE 5: Await Installation Result from Watch Bridge
-        // ---------------------------------------------------------
-        onStateChange(PushState.Installing("5/5: جاري تثبيت وتفعيل الواجهة على الساعة عبر نظام Wear OS..."))
-
-        val resultJson = withTimeoutOrNull(90000L) {
-            suspendCancellableCoroutine<JSONObject> { cont ->
-                val resultListener = object : MessageClient.OnMessageReceivedListener {
-                    override fun onMessageReceived(event: MessageEvent) {
-                        if (event.path == "/nocturne/push_result") {
-                            messageClient.removeListener(this)
-                            try {
-                                val json = JSONObject(String(event.data))
-                                cont.resume(json)
-                            } catch (e: Exception) {
-                                cont.resume(JSONObject().put("success", false).put("error", e.message))
-                            }
-                        }
-                    }
-                }
-                messageClient.addListener(resultListener)
-                cont.invokeOnCancellation {
-                    messageClient.removeListener(resultListener)
-                }
-            }
+        if (!reply.optBoolean("success")) {
+            val stage = reply.optString("stage", "INSTALL")
+            val hint = if (stage == "ACTIVATE") "افتح Nocturne Bridge وامنح إذن التفعيل، أو اختر الواجهة المثبتة من منتقي واجهات الساعة"
+            else "تحقق من الاتصال وحزمة الواجهة ثم أعد المحاولة"
+            onError(stage, reply.optString("error", "فشلت العملية على الساعة"), hint)
+            return@withContext
         }
-
-        if (resultJson != null) {
-            val success = resultJson.optBoolean("success", false)
-            val slotId = resultJson.optString("slotId", null)
-            val isActive = resultJson.optBoolean("isActive", false)
-
-            if (success) {
-                onSuccess("✓ تم تثبيت وتفعيل ${item.nameAr} على الساعة بنجاح!", slotId)
-            } else {
-                val stage = resultJson.optString("stage", "INSTALL")
-                val errorMsg = resultJson.optString("error", "فشل التثبيت على الساعة")
-                onError(stage, errorMsg, "تحقق من منح إذن التفعيل التلقائي في تطبيق Nocturne Bridge على الساعة")
-            }
-        } else {
-            // Timeout awaiting confirmation
-            onError(
-                "TIMEOUT",
-                "استغرق التثبيت وقتاً أطول من المتوقع على الساعة",
-                "تحقق من شاشة الساعة، فقد تكون الواجهة قد تم تثبيتها وتنتظر الاختيار"
-            )
-        }
-
-        // Backup config sync for backward compatibility
-        try {
-            val req = PutDataMapRequest.create("/nocturne/config").apply {
-                dataMap.putString("watch_theme", item.id)
-                dataMap.putLong("timestamp", System.currentTimeMillis())
-            }.asPutDataRequest().setUrgent()
-            Wearable.getDataClient(context).putDataItem(req)
-        } catch (_: Exception) {}
-
+        check(reply.optBoolean("isActive")) { "لم تؤكد الساعة تفعيل الواجهة المطلوبة" }
+        onSuccess("✓ تم التحقق من تفعيل ${item.nameAr} على الساعة", reply.optString("slotId").ifEmpty { null })
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        throw e
     } catch (e: Exception) {
-        Log.e("NocturnePhone", "Push failed unexpected error", e)
-        val msg = e.localizedMessage ?: e.message ?: "خطأ غير معروف"
-        if (msg.contains("API_UNAVAILABLE", ignoreCase = true) || msg.contains("17: API", ignoreCase = true)) {
-            onError(
-                "CONNECT",
-                "خدمة Wear OS غير متاحة أو لا توجد ساعة مقترنة بهذا الهاتف حالياً",
-                "تأكد من إقران الساعة وتوصيلها بالهاتف عبر تطبيق Galaxy Wearable ثم أعد المحاولة"
-            )
-        } else {
-            onError("SYSTEM", "حدث خطأ غير متوقع: $msg", "يرجى إعادة المحاولة")
-        }
+        Log.e("NocturnePhone", "Watch face push failed", e)
+        onError("PUSH", e.localizedMessage ?: "فشلت عملية إرسال الواجهة", "تحقق من اتصال الساعة ثم أعد المحاولة")
     }
 }
 
 // ---------------------------------------------------------
 // Helpers: Robust Download & APK Validation
 // ---------------------------------------------------------
+
+private const val WATCH_TRANSFER_PROTOCOL = 2
+private const val MAX_WATCH_APK_BYTES = 150L * 1024 * 1024
+
+internal suspend fun transferVerifiedWatchApk(
+    context: Context,
+    bridge: ConnectedBridge,
+    apkFile: File,
+    packageName: String,
+    kind: String,
+    token: String = "",
+    onProgress: (sent: Boolean) -> Unit
+): JSONObject = withContext(Dispatchers.IO) {
+        val size = apkFile.length()
+        require(size in 1..MAX_WATCH_APK_BYTES) { "حجم APK غير مدعوم: $size" }
+        val sha256 = watchApkSha256(apkFile)
+        val requestId = java.util.UUID.randomUUID().toString()
+        val metadata = JSONObject()
+            .put("packageName", packageName)
+            .put("token", token)
+            .put("kind", kind)
+            .put("fileSize", size)
+            .put("sha256", sha256)
+        val messageClient = Wearable.getMessageClient(context)
+        val result = kotlinx.coroutines.CompletableDeferred<JSONObject>()
+        val listener = MessageClient.OnMessageReceivedListener { event ->
+            if (event.sourceNodeId == bridge.node.id && event.path == "/nocturne/push_result/$requestId") {
+                runCatching { JSONObject(String(event.data, Charsets.UTF_8)) }
+                    .onSuccess { result.complete(it) }
+                    .onFailure { result.completeExceptionally(it) }
+            }
+        }
+        val channels = Wearable.getChannelClient(context)
+        val reply = try {
+            messageClient.addListener(listener).await()
+            val channel = kotlinx.coroutines.withTimeout(15000) {
+                channels.openChannel(bridge.node.id, "/nocturne/push_v2/$requestId").await()
+            }
+            try {
+                kotlinx.coroutines.withTimeout(300000) {
+                    onProgress(false)
+                    Log.i("NocturnePhone", "Sending $requestId ${packageName} bytes=$size sha256=$sha256")
+                    val stream = channels.getOutputStream(channel).await()
+                    kotlinx.coroutines.runInterruptible {
+                        java.io.DataOutputStream(stream.buffered()).use { output ->
+                            output.writeUTF(metadata.toString())
+                            apkFile.inputStream().use { input ->
+                                check(input.copyTo(output, 64 * 1024) == size) { "تغير حجم ملف APK أثناء النقل" }
+                            }
+                            output.flush()
+                        }
+                    }
+                    onProgress(true)
+                    result.await()
+                }
+            } finally {
+                channels.close(channel)
+            }
+        } finally {
+            messageClient.removeListener(listener)
+        }
+        Log.i("NocturnePhone", "Watch result $requestId: $reply")
+        if (reply.optBoolean("success")) {
+            check(reply.optLong("fileSize") == size && reply.optString("sha256") == sha256 &&
+                reply.optString("packageName") == packageName) { "رد الساعة لا يطابق الحزمة المرسلة" }
+        }
+        reply
+}
+
+internal data class ConnectedBridge(
+    val node: com.google.android.gms.wearable.Node,
+    val version: String,
+    val protocol: Int,
+    val versionCode: Int,
+    val management: JSONObject?
+)
+
+internal suspend fun findWatchBridge(
+    context: Context,
+    managementRequest: String? = null,
+    targetNodeId: String? = null
+): ConnectedBridge? {
+    val nodes = Wearable.getNodeClient(context).connectedNodes.await()
+        .filter { targetNodeId == null || it.id == targetNodeId }
+    if (nodes.isEmpty()) return null
+    val messages = Wearable.getMessageClient(context)
+    for (node in nodes.sortedWith(compareByDescending<com.google.android.gms.wearable.Node> { it.isNearby }.thenBy { it.id })) {
+        val nonce = java.util.UUID.randomUUID().toString() + managementRequest?.let { "|$it" }.orEmpty()
+        val response = kotlinx.coroutines.CompletableDeferred<JSONObject>()
+        val listener = MessageClient.OnMessageReceivedListener { event ->
+            if (event.path == "/nocturne/pong" && event.sourceNodeId == node.id) {
+                val json = runCatching { JSONObject(String(event.data, Charsets.UTF_8)) }.getOrNull()
+                if (json?.optString("requestId") == nonce || (json?.optInt("protocol") == 0 && json.optBoolean("bridgeInstalled"))) {
+                    response.complete(json)
+                }
+            }
+        }
+        val reply = try {
+            withTimeoutOrNull(4000) {
+                messages.addListener(listener).await()
+                messages.sendMessage(node.id, "/nocturne/ping", nonce.toByteArray()).await()
+                response.await()
+            }
+        } catch (e: com.google.android.gms.common.api.ApiException) {
+            Log.w("NocturnePhone", "Bridge discovery failed on ${node.displayName}", e)
+            null
+        } finally {
+            messages.removeListener(listener)
+        }
+        if (reply != null) return ConnectedBridge(node, reply.optString("version"), reply.optInt("protocol"), reply.optInt("versionCode"), reply.optJSONObject("management"))
+    }
+    return null
+}
+
+private fun watchApkSha256(file: File): String {
+    val digest = java.security.MessageDigest.getInstance("SHA-256")
+    file.inputStream().use { input ->
+        val buffer = ByteArray(64 * 1024)
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            digest.update(buffer, 0, count)
+        }
+    }
+    return digest.digest().joinToString("") { "%02x".format(it) }
+}
 
 fun isApkFileValid(file: File): Boolean {
     if (!file.exists() || file.length() < 10_000_000L) return false
@@ -1436,6 +1506,14 @@ suspend fun downloadApkWithValidation(
 // Catalog Loading Helpers
 // ---------------------------------------------------------
 
+private fun mergeWatchCatalog(local: List<WatchFaceItem>, remote: List<WatchFaceItem>): List<WatchFaceItem> {
+    val eligible = remote.filter { it.sha256.matches(Regex("[0-9a-fA-F]{64}")) && it.sizeBytes > 0 }
+        .associateBy { it.id }
+    return local.map { item ->
+        eligible[item.id]?.takeIf { it.versionCode > item.versionCode } ?: item
+    } + eligible.values.filter { remoteItem -> local.none { it.id == remoteItem.id } }
+}
+
 fun loadCatalogFromAssets(context: Context): List<WatchFaceItem> {
     return try {
         val jsonStr = context.assets.open("catalog.json").bufferedReader().use { it.readText() }
@@ -1504,7 +1582,9 @@ fun parseCatalogJson(jsonString: String): List<WatchFaceItem> {
                     downloadUrl = obj.optString("download_url", "https://github.com/MZAYED2/Nocturne/releases/latest/download/${obj.getString("apk_filename")}"),
                     preview = obj.optString("preview", ""),
                     versionCode = obj.optInt("version_code", 1),
-                    versionName = obj.optString("version_name", "1.0.0")
+                    versionName = obj.optString("version_name", "1.0.0"),
+                sha256 = obj.optString("sha256"),
+                sizeBytes = obj.optLong("size_bytes")
                 )
             )
         }
@@ -1839,16 +1919,24 @@ fun DrawScope.drawLunarPhaseFace(
     drawCircle(color = Color(0xFF000000), radius = 500f * scale, center = centerDial)
 
     if (!isAod) {
-        // Active Mode: 92% Screen Diameter Massive Photorealistic Moon
+        // Active Mode: 100% Screen Diameter NASA LROC 16-Bit Photorealistic Moon Edge-to-Edge
         val safeMoonIndex = moonPhaseIndex.coerceIn(0, 28)
         val moonBmp = getBmp(lunarMoonResIds[safeMoonIndex])
         drawImage(
             image = moonBmp,
-            dstOffset = IntOffset((40 * scale).toInt(), (40 * scale).toInt()),
-            dstSize = IntSize((920 * scale).toInt(), (920 * scale).toInt())
+            dstOffset = IntOffset(0, 0),
+            dstSize = IntSize((1000 * scale).toInt(), (1000 * scale).toInt())
         )
 
-        // NO Hour numbers in Active mode! Only Luminous Dual-Contrast Hands:
+        // 12 Applied Faceted Hour Markers overlay on dynamic moon
+        val markersBmp = getBmp(R.drawable.lunar_markers)
+        drawImage(
+            image = markersBmp,
+            dstOffset = IntOffset(0, 0),
+            dstSize = IntSize((1000 * scale).toInt(), (1000 * scale).toInt())
+        )
+
+        // NO Hour numbers or complications in Active mode! Only Luminous Dauphine Hands:
         val hours = currentTime.get(Calendar.HOUR_OF_DAY) % 12
         val minutes = currentTime.get(Calendar.MINUTE)
         val seconds = currentTime.get(Calendar.SECOND)
@@ -1857,48 +1945,48 @@ fun DrawScope.drawLunarPhaseFace(
         val minDeg = minutes * 6f + seconds * 0.1f
         val secDeg = seconds * 6f
 
-        // Hour Hand
+        // Hour Hand (Brushed Platinum & Warm Amber Accent)
         val hourBmp = getBmp(R.drawable.lunar_hour)
         withTransform({
             rotate(degrees = hourDeg, pivot = centerDial)
         }) {
             drawImage(
                 image = hourBmp,
-                dstOffset = IntOffset((480 * scale).toInt(), (250 * scale).toInt()),
-                dstSize = IntSize((40 * scale).toInt(), (280 * scale).toInt())
+                dstOffset = IntOffset((476 * scale).toInt(), (225 * scale).toInt()),
+                dstSize = IntSize((48 * scale).toInt(), (320 * scale).toInt())
             )
         }
 
-        // Minute Hand
+        // Minute Hand (Faceted Dauphine)
         val minBmp = getBmp(R.drawable.lunar_minute)
         withTransform({
             rotate(degrees = minDeg, pivot = centerDial)
         }) {
             drawImage(
                 image = minBmp,
-                dstOffset = IntOffset((483 * scale).toInt(), (150 * scale).toInt()),
-                dstSize = IntSize((34 * scale).toInt(), (380 * scale).toInt())
+                dstOffset = IntOffset((479 * scale).toInt(), (85 * scale).toInt()),
+                dstSize = IntSize((42 * scale).toInt(), (460 * scale).toInt())
             )
         }
 
-        // Second Hand (with red accented tip)
+        // Second Hand (Slender Golden Needle with Counterweight)
         val secBmp = getBmp(R.drawable.lunar_second)
         withTransform({
             rotate(degrees = secDeg, pivot = centerDial)
         }) {
             drawImage(
                 image = secBmp,
-                dstOffset = IntOffset((492 * scale).toInt(), (140 * scale).toInt()),
-                dstSize = IntSize((16 * scale).toInt(), (395 * scale).toInt())
+                dstOffset = IntOffset((490 * scale).toInt(), (65 * scale).toInt()),
+                dstSize = IntSize((20 * scale).toInt(), (520 * scale).toInt())
             )
         }
 
-        // Center Hub
+        // Center Hub (Concentric Steel & Gold Collar)
         val hubBmp = getBmp(R.drawable.lunar_hub)
         drawImage(
             image = hubBmp,
-            dstOffset = IntOffset((483 * scale).toInt(), (483 * scale).toInt()),
-            dstSize = IntSize((34 * scale).toInt(), (34 * scale).toInt())
+            dstOffset = IntOffset((477 * scale).toInt(), (477 * scale).toInt()),
+            dstSize = IntSize((46 * scale).toInt(), (46 * scale).toInt())
         )
     } else {
         // AOD Mode: Pure AMOLED Black, Moon Completely Gone!
@@ -1923,8 +2011,8 @@ fun DrawScope.drawLunarPhaseFace(
         }) {
             drawImage(
                 image = hourBmp,
-                dstOffset = IntOffset((480 * scale).toInt(), (250 * scale).toInt()),
-                dstSize = IntSize((40 * scale).toInt(), (280 * scale).toInt())
+                dstOffset = IntOffset((476 * scale).toInt(), (225 * scale).toInt()),
+                dstSize = IntSize((48 * scale).toInt(), (320 * scale).toInt())
             )
         }
 
@@ -1935,8 +2023,8 @@ fun DrawScope.drawLunarPhaseFace(
         }) {
             drawImage(
                 image = minBmp,
-                dstOffset = IntOffset((483 * scale).toInt(), (150 * scale).toInt()),
-                dstSize = IntSize((34 * scale).toInt(), (380 * scale).toInt())
+                dstOffset = IntOffset((479 * scale).toInt(), (85 * scale).toInt()),
+                dstSize = IntSize((42 * scale).toInt(), (460 * scale).toInt())
             )
         }
 
@@ -1946,8 +2034,8 @@ fun DrawScope.drawLunarPhaseFace(
         val hubBmp = getBmp(R.drawable.lunar_hub)
         drawImage(
             image = hubBmp,
-            dstOffset = IntOffset((483 * scale).toInt(), (483 * scale).toInt()),
-            dstSize = IntSize((34 * scale).toInt(), (34 * scale).toInt())
+            dstOffset = IntOffset((477 * scale).toInt(), (477 * scale).toInt()),
+            dstSize = IntSize((46 * scale).toInt(), (46 * scale).toInt())
         )
     }
 }

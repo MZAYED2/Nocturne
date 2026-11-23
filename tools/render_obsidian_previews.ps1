@@ -1,7 +1,7 @@
 Add-Type -AssemblyName System.Drawing
 
 $artDir = 'C:\Users\mohamed zayed\.gemini\antigravity-acp\brain\2d4c81b1-82e2-4031-b244-001e9e90dc8f'
-$resDir = 'F:\Progects-Android-Studio\Nocturne\app\src\main\res\drawable'
+$resDir = "$PSScriptRoot\..\app\src\main\res\drawable"
 
 # 1. Render Obsidian Active
 $bmpActive = New-Object System.Drawing.Bitmap 1000, 1000

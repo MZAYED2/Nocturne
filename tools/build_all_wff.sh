@@ -7,6 +7,13 @@ set -e
 PROJECT_ROOT="$(pwd)"
 DIST_DIR="$PROJECT_ROOT/distribution"
 mkdir -p "$DIST_DIR"
+STUDIO_NAVY=false
+if [[ "${1:-}" == "--studio-navy" ]]; then
+    STUDIO_NAVY=true
+    shift
+fi
+WFF_VERSION_CODE="${1:-1007}"
+WFF_VERSION_NAME="${2:-1.0.7}"
 
 # Locate build-tools
 BUILD_TOOLS_DIR=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
@@ -83,7 +90,7 @@ build_wff() {
     echo "Building WFF Package: $NAME ($PKG_NAME, v$VNAME Code $VCODE)"
     echo "=================================================="
 
-    ./gradlew :watchface:assembleDebug -PwffPackageName="$PKG_NAME" -PwffVersionCode="$VCODE" -PwffVersionName="$VNAME" --quiet --no-daemon
+    ./gradlew :watchface:assembleDebug -PwffStudioNavy="$STUDIO_NAVY" -PwffPackageName="$PKG_NAME" -PwffVersionCode="$VCODE" -PwffVersionName="$VNAME" --no-configuration-cache --quiet --no-daemon
 
     local TEMP_DIR=$(mktemp -d)
     unzip -q "$BASE_APK" -d "$TEMP_DIR"
@@ -91,12 +98,14 @@ build_wff() {
     # Copy generated drawables if any
     local GEN_DRAWABLE="$PROJECT_ROOT/watchface/build/generated/refinement/res/drawable"
     if [ -d "$GEN_DRAWABLE" ]; then
-        cp -n "$GEN_DRAWABLE"/* "$TEMP_DIR/res/drawable/" 2>/dev/null || true
+        cp -f "$GEN_DRAWABLE"/* "$TEMP_DIR/res/drawable/" 2>/dev/null || true
     fi
 
     # Replace watchface.xml
     mkdir -p "$TEMP_DIR/res/raw"
-    cp "$XML_FILE" "$TEMP_DIR/res/raw/watchface.xml"
+    if [[ "$STUDIO_NAVY" != true ]]; then
+        cp "$XML_FILE" "$TEMP_DIR/res/raw/watchface.xml"
+    fi
 
     # Remove non-WFF files
     rm -rf "$TEMP_DIR"/*.dex "$TEMP_DIR"/kotlin* "$TEMP_DIR"/META-INF/*.SF "$TEMP_DIR"/META-INF/*.RSA "$TEMP_DIR"/META-INF/*.DSA "$TEMP_DIR"/META-INF/*.EC "$TEMP_DIR"/META-INF/MANIFEST.MF 2>/dev/null || true
@@ -125,12 +134,24 @@ build_wff() {
         TOKEN=$(echo "$VAL_OUTPUT" | grep -oE "Validation token: [^ ]+" | awk '{print $3}')
     fi
 
+    test -n "$TOKEN"
     echo "Token for $NAME ($PKG_NAME): $TOKEN"
+    if [[ "$STUDIO_NAVY" == true ]]; then
+        local SHA=$(sha256sum "$FINAL_APK" | cut -d' ' -f1)
+        local SIZE=$(wc -c < "$FINAL_APK")
+        printf '{"packageName":"%s","apk":"%s","token":"%s","bytes":%s,"sha256":"%s"}\n' \
+            "$PKG_NAME" "$OUT_APK" "$TOKEN" "$SIZE" "$SHA" > "$DIST_DIR/Nocturne-Sage-Navy.json"
+    fi
 }
 
-build_wff "Sage Nocturne" "sage_nocturne" "$PROJECT_ROOT/tools/watchface_sage.xml" "Nocturne-Sage-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.sage" "1007" "1.0.7" "Ottoman Sage Green heritage dial"
-build_wff "Lunar Phase" "lunar_phase" "$PROJECT_ROOT/tools/watchface_lunar.xml" "Nocturne-Lunar-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.lunar" "1007" "1.0.7" "Large poetic astronomical moon disc"
-build_wff "Obsidian Atelier" "obsidian_atelier" "$PROJECT_ROOT/tools/watchface_obsidian.xml" "Nocturne-Obsidian-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.obsidian" "1007" "1.0.7" "Mechanical luxury dial with small seconds and power reserve"
-build_wff "Emerald Nocturne" "emerald_nocturne" "$PROJECT_ROOT/tools/watchface_emerald.xml" "Nocturne-Emerald-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.emerald" "1007" "1.0.7" "Imperial Emerald and Gold edition (Legacy Backup)"
+if [[ "$STUDIO_NAVY" == true ]]; then
+    build_wff "Sage Navy" "sage_navy" "$PROJECT_ROOT/tools/watchface_sage.xml" "Nocturne-Sage-Navy-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.sagenavy" "$WFF_VERSION_CODE" "$WFF_VERSION_NAME" "Studio Navy background"
+    exit 0
+fi
+
+build_wff "Sage Nocturne" "sage_nocturne" "$PROJECT_ROOT/tools/watchface_sage.xml" "Nocturne-Sage-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.sage" "$WFF_VERSION_CODE" "$WFF_VERSION_NAME" "Ottoman Sage Green heritage dial"
+build_wff "Lunar Phase" "lunar_phase" "$PROJECT_ROOT/tools/watchface_lunar.xml" "Nocturne-Lunar-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.lunar" "$WFF_VERSION_CODE" "$WFF_VERSION_NAME" "Large poetic astronomical moon disc"
+build_wff "Obsidian Atelier" "obsidian_atelier" "$PROJECT_ROOT/tools/watchface_obsidian.xml" "Nocturne-Obsidian-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.obsidian" "$WFF_VERSION_CODE" "$WFF_VERSION_NAME" "Mechanical luxury dial with small seconds and power reserve"
+build_wff "Emerald Nocturne" "emerald_nocturne" "$PROJECT_ROOT/tools/watchface_emerald.xml" "Nocturne-Emerald-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.emerald" "$WFF_VERSION_CODE" "$WFF_VERSION_NAME" "Imperial Emerald and Gold edition (Legacy Backup)"
 
 echo "All WFF Packages Built and Validated Successfully!"

@@ -8,10 +8,10 @@ $apksigner = "$buildTools\apksigner.bat"
 $zipalign = "$buildTools\zipalign.exe"
 $keystore = "C:\Users\mohamed zayed\.android\debug.keystore"
 $java = "C:\Program Files\Android\Android Studio\jbr\bin\java.exe"
-$validator = "F:\Progects-Android-Studio\Nocturne\tools\validator-push-cli.jar"
+$validator = "$PSScriptRoot\..\tools\validator-push-cli.jar"
 
-$baseApk = "F:\Progects-Android-Studio\Nocturne\watchface\build\outputs\apk\debug\watchface-debug.apk"
-$outDir = "F:\Progects-Android-Studio\Nocturne\distribution"
+$baseApk = "$PSScriptRoot\..\watchface\build\outputs\apk\debug\watchface-debug.apk"
+$outDir = "$PSScriptRoot\..\distribution"
 
 if (-not (Test-Path $outDir)) {
     New-Item -ItemType Directory -Path $outDir -Force | Out-Null
@@ -31,7 +31,7 @@ function Build-And-Validate-WFF($name, $id, $xmlFile, $outApkName, $desc, $previ
     [System.IO.Compression.ZipFile]::ExtractToDirectory($baseApk, $tempDir)
 
     # 1. Ensure all generated drawables are present
-    $genDrawable = "F:\Progects-Android-Studio\Nocturne\watchface\build\generated\refinement\res\drawable"
+    $genDrawable = "$PSScriptRoot\..\watchface\build\generated\refinement\res\drawable"
     $targetDrawable = [System.IO.Path]::Combine($tempDir, "res", "drawable")
     if (Test-Path $genDrawable) {
         Get-ChildItem -Path $genDrawable | ForEach-Object {
@@ -111,13 +111,13 @@ function Build-And-Validate-WFF($name, $id, $xmlFile, $outApkName, $desc, $previ
 }
 
 # 1. Sage Nocturne
-$sage = Build-And-Validate-WFF "Sage Nocturne" "sage_nocturne" "F:\Progects-Android-Studio\Nocturne\tools\watchface_sage.xml" "Nocturne-Sage-Push.apk" "Ottoman Sage Green heritage dial with engraved calligraphy, small moon phase, and active/AOD modes." "preview_sage.png"
+$sage = Build-And-Validate-WFF "Sage Nocturne" "sage_nocturne" "$PSScriptRoot\..\tools\watchface_sage.xml" "Nocturne-Sage-Push.apk" "Ottoman Sage Green heritage dial with engraved calligraphy, small moon phase, and active/AOD modes." "preview_sage.png"
 
 # 2. Lunar Phase
-$lunar = Build-And-Validate-WFF "Lunar Phase" "lunar_phase" "F:\Progects-Android-Studio\Nocturne\tools\watchface_lunar.xml" "Nocturne-Lunar-Push.apk" "Large poetic astronomical moon disc filling the watch display, with luminous dual-contrast hands and minimal AOD dial." "preview_lunar.png"
+$lunar = Build-And-Validate-WFF "Lunar Phase" "lunar_phase" "$PSScriptRoot\..\tools\watchface_lunar.xml" "Nocturne-Lunar-Push.apk" "Large poetic astronomical moon disc filling the watch display, with luminous dual-contrast hands and minimal AOD dial." "preview_lunar.png"
 
 # 3. Emerald Nocturne (Test Modified Face)
-$emerald = Build-And-Validate-WFF "Emerald Nocturne" "emerald_nocturne" "F:\Progects-Android-Studio\Nocturne\tools\watchface_emerald.xml" "Nocturne-Emerald-Push.apk" "Imperial Emerald and Gold edition with ornate Ottoman pattern, golden hands, and emerald accents." "preview_emerald.png"
+$emerald = Build-And-Validate-WFF "Emerald Nocturne" "emerald_nocturne" "$PSScriptRoot\..\tools\watchface_emerald.xml" "Nocturne-Emerald-Push.apk" "Imperial Emerald and Gold edition with ornate Ottoman pattern, golden hands, and emerald accents." "preview_emerald.png"
 
 # Generate catalog.json
 $catalog = @{
@@ -127,8 +127,8 @@ $catalog = @{
 }
 
 $catalogJson = $catalog | ConvertTo-Json -Depth 5
-[System.IO.File]::WriteAllText("F:\Progects-Android-Studio\Nocturne\catalog.json", $catalogJson, [System.Text.Encoding]::UTF8)
-[System.IO.File]::WriteAllText("F:\Progects-Android-Studio\Nocturne\distribution\catalog.json", $catalogJson, [System.Text.Encoding]::UTF8)
+[System.IO.File]::WriteAllText("$PSScriptRoot\..\catalog.json", $catalogJson, [System.Text.Encoding]::UTF8)
+[System.IO.File]::WriteAllText("$PSScriptRoot\..\distribution\catalog.json", $catalogJson, [System.Text.Encoding]::UTF8)
 
 Write-Host "`n=================================================="
 Write-Host "CATALOG GENERATED AT catalog.json"

@@ -4,14 +4,13 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
-import android.os.ParcelFileDescriptor
 import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.core.content.FileProvider
+import androidx.lifecycle.lifecycleScope
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -49,7 +48,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
-import java.io.FileOutputStream
 
 data class InstalledSlotInfo(
     val slotId: String,
@@ -62,6 +60,8 @@ class BridgeMainActivity : ComponentActivity() {
     companion object {
         private const val TAG = "NocturneBridge"
     }
+
+    private var bridgeInstallInProgress = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -82,7 +82,7 @@ class BridgeMainActivity : ComponentActivity() {
                 },
                 onCheckBridgeUpdate = {
                     val file = File(filesDir, "Nocturne-WearBridge-update.apk")
-                    if (file.exists() && file.length() > 1_000_000L) file else null
+                    file.takeIf { it.isFile && isValidBridgeUpdate(this, it) }
                 },
                 onInstallBridgeUpdate = { file ->
                     installBridgeApk(file)
@@ -92,20 +92,29 @@ class BridgeMainActivity : ComponentActivity() {
     }
 
     private fun installBridgeApk(apkFile: File) {
-        try {
-            val uri = FileProvider.getUriForFile(
-                applicationContext,
-                "$packageName.fileprovider",
-                apkFile
-            )
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(uri, "application/vnd.android.package-archive")
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (bridgeInstallInProgress) return
+        if (!packageManager.canRequestPackageInstalls()) {
+            try {
+                startActivity(Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:$packageName")))
+                Toast.makeText(this, "امنح إذن التثبيت ثم اضغط تثبيت مرة أخرى", Toast.LENGTH_LONG).show()
+            } catch (e: Exception) {
+                Log.w(TAG, "Wear OS can't open unknown app installation settings", e)
+                Toast.makeText(this, "ثبّت WearBridge من مصدره الرسمي على الساعة", Toast.LENGTH_LONG).show()
             }
-            startActivity(intent)
-        } catch (e: Exception) {
-            Log.e(TAG, "Direct install intent failed", e)
-            Toast.makeText(this, "Wear OS يتطلب التثبيت المباشر عبر GeminiMan. تم حفظ الملف للتحديث فوق النسخة القديمة.", Toast.LENGTH_LONG).show()
+            return
+        }
+        bridgeInstallInProgress = true
+        lifecycleScope.launch {
+            try {
+                withContext(Dispatchers.IO) { commitBridgeUpdate(this@BridgeMainActivity, apkFile) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Could not start WearBridge update", e)
+                Toast.makeText(this@BridgeMainActivity, e.localizedMessage, Toast.LENGTH_LONG).show()
+            } finally {
+                bridgeInstallInProgress = false
+            }
         }
     }
 
@@ -129,61 +138,39 @@ class BridgeMainActivity : ComponentActivity() {
     }
 
     private fun installEmeraldFromAssets(callback: (Boolean, String) -> Unit) {
-        kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
-            val tempFile = File(cacheDir, "Nocturne-Emerald-Push.apk")
-            try {
-                // 1. Copy from assets
-                val assetList = assets.list("") ?: emptyArray()
-                if (!assetList.contains("Nocturne-Emerald-Push.apk")) {
-                    withContext(Dispatchers.Main) {
-                        callback(false, "الملف غير متوفر في أصول التطبيق")
-                    }
-                    return@launch
-                }
-
-                assets.open("Nocturne-Emerald-Push.apk").use { input ->
-                    FileOutputStream(tempFile).use { output ->
-                        input.copyTo(output)
-                    }
-                }
-
-                val token = "R0rZewQOY75gkTO3l/Cl+bz+y9AbZOoMyq1C4022xVI=:MS4wLjA="
-                val pushManager = WatchFacePushManagerFactory.createWatchFacePushManager(applicationContext)
-                val pfd = ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_ONLY)
-
-                val list = pushManager.listWatchFaces()
-                val existing = list.installedWatchFaceDetails.firstOrNull()
-
-                val slotId = if (existing != null) {
-                    Log.i(TAG, "Updating slot ${existing.slotId}")
-                    pushManager.updateWatchFace(existing.slotId, pfd, token)
-                    existing.slotId
-                } else {
-                    Log.i(TAG, "Adding new watch face")
-                    val slot = pushManager.addWatchFace(pfd, token)
-                    slot.slotId
-                }
-                pfd.close()
-
-                var activeSet = false
+        lifecycleScope.launch {
+            val result = withContext(Dispatchers.IO) {
+                val apk = File.createTempFile("emerald-", ".apk", cacheDir)
                 try {
-                    pushManager.setWatchFaceAsActive(slotId)
-                    activeSet = true
+                    val catalog = assets.open("catalog.json").bufferedReader().use { org.json.JSONObject(it.readText()) }
+                    val faces = catalog.getJSONArray("watchfaces")
+                    val entries = (0 until faces.length()).map(faces::getJSONObject)
+                    val face = entries.first { it.getString("id") == "emerald_nocturne" }
+                    val digest = java.security.MessageDigest.getInstance("SHA-256")
+                    assets.open(face.getString("apk_filename")).use { input ->
+                        java.security.DigestInputStream(input, digest).use { verified ->
+                            apk.outputStream().use { verified.copyTo(it) }
+                        }
+                    }
+                    val hash = digest.digest().joinToString("") { "%02x".format(it) }
+                    check(apk.length() == face.getLong("size_bytes") && hash == face.getString("sha256")) {
+                        "حزمة Emerald المدمجة لا تطابق بيانات التحقق"
+                    }
+                    val slot = installWatchFace(
+                        this@BridgeMainActivity, apk, face.getString("package_name"),
+                        face.getString("validation_token"), "local-emerald"
+                    ) {}
+                    true to "✓ تم التحقق من تفعيل Emerald في الخانة $slot"
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
-                    Log.w(TAG, "Could not set watch face active", e)
+                    Log.e(TAG, "Local Emerald installation failed", e)
+                    false to ("تعذر تفعيل Emerald: " + e.localizedMessage)
+                } finally {
+                    apk.delete()
                 }
-
-                withContext(Dispatchers.Main) {
-                    callback(true, "✓ تم تثبيت وتفعيل Emerald في الخانة $slotId (نشطة: $activeSet)")
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Push failed", e)
-                withContext(Dispatchers.Main) {
-                    callback(false, "فشل التثبيت: ${e.message}")
-                }
-            } finally {
-                if (tempFile.exists()) tempFile.delete()
             }
+            callback(result.first, result.second)
         }
     }
 }

@@ -5,7 +5,22 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+val generatedWatchAssets = layout.buildDirectory.dir("generated/watch-assets")
+val stageWatchAssets = tasks.register<Sync>("stageWatchAssets") {
+    val distribution = rootProject.layout.projectDirectory.dir("distribution")
+    from(distribution) {
+        include("Nocturne-*-Push.apk", "Nocturne-Sage-Navy.json")
+        into("watchfaces")
+    }
+    from(distribution) { include("catalog.json") }
+    into(generatedWatchAssets)
+}
+tasks.named("preBuild").configure { dependsOn(stageWatchAssets) }
+
 android {
+    sourceSets.named("debug") { assets.directories.add(generatedWatchAssets.get().asFile.path) }
+    sourceSets.named("release") { assets.directories.add(generatedWatchAssets.get().asFile.path) }
+
     namespace = "com.mohamedzayed.nocturne"
     compileSdk {
         version = release(37)
@@ -42,9 +57,24 @@ android {
 
     val resolvedStoreFile = if (keystoreEnvPath != null) rootProject.file(keystoreEnvPath) else rootProject.file(".signing/nocturne-release.jks")
 
+    val hasReleaseSigning = resolvedStoreFile.exists() && !keystorePasswordEnv.isNullOrEmpty() &&
+        !keyAliasEnv.isNullOrEmpty() && !keyPasswordEnv.isNullOrEmpty()
+
+    val requireReleaseSigning = tasks.register("requireReleaseSigning") {
+        inputs.property("releaseSigningConfigured", hasReleaseSigning)
+        doLast {
+            check(inputs.properties["releaseSigningConfigured"] == true) {
+                "Configure the permanent Nocturne signing key before building a release APK."
+            }
+        }
+    }
+    tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+        dependsOn(requireReleaseSigning)
+    }
+
     signingConfigs {
         create("release") {
-            if (resolvedStoreFile.exists() && !keystorePasswordEnv.isNullOrEmpty() && !keyAliasEnv.isNullOrEmpty() && !keyPasswordEnv.isNullOrEmpty()) {
+            if (hasReleaseSigning) {
                 storeFile = resolvedStoreFile
                 storePassword = keystorePasswordEnv
                 keyAlias = keyAliasEnv
@@ -63,13 +93,16 @@ android {
 
     buildTypes {
         release {
+            buildConfigField("String", "UPDATE_FEED_URL", "\"\"")
             signingConfig = signingConfigs.getByName("release")
             optimization {
-                enable = true
-                packageScope = setOf("androidx.**", "kotlin.**", "kotlinx.**")
+                enable = false
             }
         }
         debug {
+            val feed = providers.gradleProperty("nocturneTestUpdateFeed").orElse("").get()
+            require(feed.isEmpty() || Regex("http://127\\.0\\.0\\.1:[0-9]{1,5}/[a-zA-Z0-9_/-]+").matches(feed))
+            buildConfigField("String", "UPDATE_FEED_URL", "\"$feed\"")
             signingConfig = signingConfigs.getByName("release")
         }
     }

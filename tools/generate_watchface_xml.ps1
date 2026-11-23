@@ -1,4 +1,4 @@
-$srcPath = "F:\Progects-Android-Studio\Nocturne\watchface\src\main\res\raw\watchface.xml"
+$srcPath = "$PSScriptRoot\..\watchface\src\main\res\raw\watchface.xml"
 $lines = [System.IO.File]::ReadAllLines($srcPath)
 
 $sb = [System.Text.StringBuilder]::new()

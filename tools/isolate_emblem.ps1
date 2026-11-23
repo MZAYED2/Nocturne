@@ -1,6 +1,6 @@
 ﻿Add-Type -AssemblyName System.Drawing
 
-$srcPath = "F:\Progects-Android-Studio\Nocturne\design-assets\nocturne_eclipse_layers_original.png"
+$srcPath = "$PSScriptRoot\..\design-assets\artwork\nocturne_eclipse_layers_original.png"
 $src = [System.Drawing.Bitmap]::FromFile($srcPath)
 
 $w = $src.Width

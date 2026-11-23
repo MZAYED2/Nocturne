@@ -1,7 +1,7 @@
 Add-Type -AssemblyName System.Drawing
 
-$fgBmp = [System.Drawing.Bitmap]::FromFile("F:\Progects-Android-Studio\Nocturne\design-assets\ic_launcher_foreground_1080.png")
-$bgBmp = [System.Drawing.Bitmap]::FromFile("F:\Progects-Android-Studio\Nocturne\design-assets\ic_launcher_background_1080.png")
+$fgBmp = [System.Drawing.Bitmap]::FromFile("$PSScriptRoot\..\design-assets\artwork\ic_launcher_foreground_1080.png")
+$bgBmp = [System.Drawing.Bitmap]::FromFile("$PSScriptRoot\..\design-assets\artwork\ic_launcher_background_1080.png")
 
 # Densities for legacy mipmaps (size of square icon)
 $densities = @{
@@ -25,8 +25,8 @@ function Get-RoundedRectPath($rect, $radius) {
 }
 
 $targets = @(
-    "F:\Progects-Android-Studio\Nocturne\app\src\main\res",
-    "F:\Progects-Android-Studio\Nocturne\wear-bridge\src\main\res"
+    "$PSScriptRoot\..\app\src\main\res",
+    "$PSScriptRoot\..\wear-bridge\src\main\res"
 )
 
 foreach ($target in $targets) {

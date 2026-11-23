@@ -11,16 +11,16 @@ import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import androidx.core.content.FileProvider
-import com.google.android.gms.wearable.ChannelClient
-import com.google.android.gms.wearable.Wearable
+import com.mohamedzayed.nocturne.findWatchBridge
+import com.mohamedzayed.nocturne.transferVerifiedWatchApk
 import com.mohamedzayed.nocturne.BuildConfig
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ensureActive
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.security.MessageDigest
@@ -36,23 +36,18 @@ data class ReleaseInfo(
     val bridgeApkUrl: String?,
     val bridgeApkName: String?,
     val bridgeApkSize: Long,
-    val catalogUrl: String?
+    val catalogUrl: String?,
+    val phoneApkSha256: String?,
+    val bridgeApkSha256: String?
 ) {
     val numericVersion: Int
         get() = parseVersionToNumber(tagName)
 
     companion object {
         fun parseVersionToNumber(tag: String): Int {
-            val clean = tag.removePrefix("v").trim()
-            val parts = clean.split(".")
-            return try {
-                val major = parts.getOrNull(0)?.toIntOrNull() ?: 1
-                val minor = parts.getOrNull(1)?.toIntOrNull() ?: 0
-                val patch = parts.getOrNull(2)?.toIntOrNull() ?: 0
-                major * 1000 + minor * 100 + patch
-            } catch (_: Exception) {
-                0
-            }
+            val match = Regex("v?(\\d{1,4})\\.(\\d)\\.(\\d{1,2})").matchEntire(tag.trim()) ?: return 0
+            val (major, minor, patch) = match.destructured
+            return major.toInt() * 1000 + minor.toInt() * 100 + patch.toInt()
         }
     }
 }
@@ -111,20 +106,13 @@ object UpdateManager {
 
     suspend fun checkLatestRelease(): Result<ReleaseInfo> = withContext(Dispatchers.IO) {
         try {
-            val url = URL(REPO_RELEASES_URL)
-            val conn = url.openConnection() as HttpURLConnection
-            conn.requestMethod = "GET"
-            conn.setRequestProperty("User-Agent", "Nocturne-Android-App/${currentVersionName}")
-            conn.setRequestProperty("Accept", "application/vnd.github.v3+json")
-            conn.connectTimeout = 12000
-            conn.readTimeout = 15000
-
-            val code = conn.responseCode
-            if (code !in 200..299) {
-                return@withContext Result.failure(Exception("استجابة غير متوقعة من GitHub: HTTP $code"))
+            val feed = BuildConfig.UPDATE_FEED_URL.ifBlank { REPO_RELEASES_URL }
+            val conn = openDownload(feed)
+            val bodyText = try {
+                conn.inputStream.bufferedReader().use { it.readText() }
+            } finally {
+                conn.disconnect()
             }
-
-            val bodyText = conn.inputStream.bufferedReader().use { it.readText() }
             val json = JSONObject(bodyText)
 
             val tagName = json.optString("tag_name", "")
@@ -141,6 +129,8 @@ object UpdateManager {
             var bridgeApkSize: Long = 0L
 
             var catalogUrl: String? = null
+            var phoneApkSha256: String? = null
+            var bridgeApkSha256: String? = null
 
             val assets = json.optJSONArray("assets")
             if (assets != null) {
@@ -149,14 +139,21 @@ object UpdateManager {
                     val assetName = asset.optString("name", "")
                     val downloadUrl = asset.optString("browser_download_url", "")
                     val size = asset.optLong("size", 0L)
+                    val digest = asset.optString("digest").takeIf { it.startsWith("sha256:") }
+                        ?.removePrefix("sha256:")?.lowercase()
+                        ?.takeIf { it.matches(Regex("[0-9a-f]{64}")) }
 
                     when {
                         assetName.startsWith("Nocturne-Phone-", ignoreCase = true) && assetName.endsWith(".apk", ignoreCase = true) -> {
+                            if (digest == null || size <= 0) continue
+                            phoneApkSha256 = digest
                             phoneApkUrl = downloadUrl
                             phoneApkName = assetName
                             phoneApkSize = size
                         }
                         assetName.startsWith("Nocturne-WearBridge-", ignoreCase = true) && assetName.endsWith(".apk", ignoreCase = true) -> {
+                            if (digest == null || size <= 0) continue
+                            bridgeApkSha256 = digest
                             bridgeApkUrl = downloadUrl
                             bridgeApkName = assetName
                             bridgeApkSize = size
@@ -179,25 +176,23 @@ object UpdateManager {
                 bridgeApkUrl = bridgeApkUrl,
                 bridgeApkName = bridgeApkName,
                 bridgeApkSize = bridgeApkSize,
-                catalogUrl = catalogUrl
+                catalogUrl = catalogUrl,
+                phoneApkSha256 = phoneApkSha256,
+                bridgeApkSha256 = bridgeApkSha256
             )
+            require(release.numericVersion > 0 && release.phoneApkUrl != null) {
+                "بيانات الإصدار أو بصمة حزمة الهاتف غير متوفرة"
+            }
             Result.success(release)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Error checking releases", e)
             Result.failure(e)
         }
     }
 
-    fun isNewerThanCurrent(release: ReleaseInfo): Boolean {
-        val currentNum = ReleaseInfo.parseVersionToNumber(currentVersionName)
-        val releaseNum = release.numericVersion
-        return if (currentNum > 0 && releaseNum > 0) {
-            releaseNum > currentNum
-        } else {
-            !release.tagName.equals("v$currentVersionName", ignoreCase = true) &&
-                    !release.tagName.equals(currentVersionName, ignoreCase = true)
-        }
-    }
+    fun isNewerThanCurrent(release: ReleaseInfo): Boolean = release.numericVersion > currentVersionCode
 
     fun isWifiConnected(context: Context): Boolean {
         val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return false
@@ -207,155 +202,115 @@ object UpdateManager {
                 caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)
     }
 
+    private fun openDownload(initialUrl: String): HttpURLConnection {
+        var url = URL(initialUrl)
+        repeat(8) {
+            val localTest = BuildConfig.DEBUG && BuildConfig.UPDATE_FEED_URL.isNotBlank() &&
+                url.protocol == "http" && url.host == "127.0.0.1"
+            require(url.protocol == "https" || localTest) { "رابط التحديث غير آمن" }
+            val connection = (url.openConnection() as HttpURLConnection).apply {
+                instanceFollowRedirects = false
+                connectTimeout = 15000
+                readTimeout = 30000
+                setRequestProperty("User-Agent", "Nocturne-Android-App/$currentVersionName")
+                if (url.host == "api.github.com") setRequestProperty("Accept", "application/vnd.github+json")
+            }
+            try {
+                val code = connection.responseCode
+                if (code == 200) return connection
+                check(code in 300..399) { "استجابة غير متوقعة أثناء التحديث: HTTP $code" }
+                val target = connection.getHeaderField("Location") ?: error("مسار إعادة التوجيه مفقود")
+                url = URL(url, target)
+            } catch (e: Exception) {
+                connection.disconnect()
+                throw e
+            }
+            connection.disconnect()
+        }
+        error("عدد عمليات إعادة التوجيه أكبر من المتوقع")
+    }
+
     suspend fun downloadApk(
         context: Context,
         urlString: String,
         destinationFile: File,
+        expectedSize: Long,
+        expectedSha256: String?,
         wifiOnly: Boolean = false,
         onProgress: (Float, Long, Long) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
-        if (wifiOnly && !isWifiConnected(context)) {
-            return@withContext Result.failure(Exception("التنزيل معطل خارج شبكة Wi-Fi حسب إعدادات التحديث"))
-        }
-
+        var temp: File? = null
         try {
-            var currentUrl = urlString
-            var connection: HttpURLConnection? = null
-            var redirects = 0
-            val maxRedirects = 8
-
-            while (redirects < maxRedirects) {
-                val url = URL(currentUrl)
-                connection = (url.openConnection() as HttpURLConnection).apply {
-                    instanceFollowRedirects = false
-                    connectTimeout = 20000
-                    readTimeout = 30000
-                    setRequestProperty("User-Agent", "Nocturne-Android-App/$currentVersionName")
-                    setRequestProperty("Accept", "*/*")
-                }
-
-                val code = connection.responseCode
-                if (code in 300..399) {
-                    val location = connection.getHeaderField("Location")
-                        ?: return@withContext Result.failure(Exception("توجيه HTTP بدون مسار Location"))
-                    currentUrl = if (location.startsWith("http://") || location.startsWith("https://")) {
-                        location
-                    } else {
-                        URL(url, location).toString()
+            check(!wifiOnly || isWifiConnected(context)) { "التنزيل معطل خارج شبكة Wi-Fi حسب إعدادات التحديث" }
+            require(expectedSize in 1..(512L * 1024 * 1024) &&
+                expectedSha256?.matches(Regex("[0-9a-f]{64}")) == true) { "بيانات تحقق التحديث غير صالحة" }
+            val digest = MessageDigest.getInstance("SHA-256")
+            val working = File.createTempFile("update-", ".part", destinationFile.parentFile)
+            temp = working
+            val connection = openDownload(urlString)
+            val size = try {
+                connection.inputStream.use { input ->
+                    working.outputStream().buffered().use { output ->
+                        val buffer = ByteArray(64 * 1024)
+                        var total = 0L
+                        while (true) {
+                            coroutineContext.ensureActive()
+                            val count = input.read(buffer)
+                            if (count < 0) break
+                            total += count
+                            check(total <= expectedSize) { "حجم الحزمة أكبر من المعلن" }
+                            digest.update(buffer, 0, count)
+                            output.write(buffer, 0, count)
+                            onProgress(total.toFloat() / expectedSize, total, expectedSize)
+                        }
+                        total
                     }
-                    connection.disconnect()
-                    redirects++
-                } else if (code == 200) {
-                    break
-                } else {
-                    return@withContext Result.failure(Exception("خطأ في الخادم أثناء التنزيل: HTTP $code"))
                 }
+            } finally {
+                connection.disconnect()
             }
-
-            val finalConn = connection ?: return@withContext Result.failure(Exception("فشل فتح الاتصال"))
-            val totalBytes = finalConn.contentLengthLong
-            val tempFile = File(destinationFile.parentFile, "${destinationFile.name}.downloading")
-            if (tempFile.exists()) tempFile.delete()
-
-            finalConn.inputStream.use { input ->
-                FileOutputStream(tempFile).use { output ->
-                    val buffer = ByteArray(64 * 1024)
-                    var bytesRead: Int
-                    var totalRead = 0L
-
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                        totalRead += bytesRead
-                        val fraction = if (totalBytes > 0) totalRead.toFloat() / totalBytes.toFloat() else 0f
-                        onProgress(fraction, totalRead, totalBytes)
-                    }
-                    output.flush()
-                }
-            }
-
-            // Verify basic file integrity
-            if (tempFile.length() < 1_000_000L) {
-                tempFile.delete()
-                return@withContext Result.failure(Exception("الملف المُنزّل تالف أو حجمه أقل من المتوقع (${tempFile.length()} بايت)"))
-            }
-
-            if (!isZipMagicValid(tempFile)) {
-                tempFile.delete()
-                return@withContext Result.failure(Exception("الملف المُنزّل ليس حزمة APK صالحة (فشل فحص توقيع ZIP)"))
-            }
-
-            if (destinationFile.exists()) destinationFile.delete()
-            if (!tempFile.renameTo(destinationFile)) {
-                return@withContext Result.failure(Exception("فشل نقل الملف المؤقت إلى المسار النهائي"))
-            }
-
+            val sha256 = digest.digest().joinToString("") { "%02x".format(it) }
+            check(size == expectedSize && sha256 == expectedSha256) { "حجم الحزمة أو بصمة SHA-256 لا تتطابق" }
+            check(working.renameTo(destinationFile)) { "تعذر حفظ حزمة التحديث" }
+            Log.i(TAG, "Verified downloaded APK bytes=$size sha256=$sha256")
             Result.success(destinationFile)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.e(TAG, "Download failed", e)
             Result.failure(e)
+        } finally {
+            temp?.delete()
         }
     }
 
-    private fun isZipMagicValid(file: File): Boolean {
-        return try {
-            FileInputStream(file).use { fis ->
-                val magic = ByteArray(4)
-                fis.read(magic) == 4 &&
-                        magic[0] == 0x50.toByte() &&
-                        magic[1] == 0x4B.toByte() &&
-                        magic[2] == 0x03.toByte() &&
-                        magic[3] == 0x04.toByte()
-            }
-        } catch (_: Exception) {
-            false
+    @Suppress("DEPRECATION")
+    fun verifyApkSignerMatchesCurrentApp(context: Context, apkFile: File, expectedCode: Int? = null): Boolean = runCatching {
+        val pm = context.packageManager
+        val modern = Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+        val signingFlags = if (modern) PackageManager.GET_SIGNING_CERTIFICATES else PackageManager.GET_SIGNATURES
+        val flags = signingFlags or PackageManager.GET_CONFIGURATIONS
+        val archive = pm.getPackageArchiveInfo(apkFile.absolutePath, flags) ?: return false
+        val installed = pm.getPackageInfo(context.packageName, flags)
+        val version = if (modern) archive.longVersionCode else archive.versionCode.toLong()
+        val installedVersion = if (modern) installed.longVersionCode else installed.versionCode.toLong()
+        fun signers(info: android.content.pm.PackageInfo): Set<String> =
+            (if (modern) info.signingInfo?.apkContentsSigners else info.signatures).orEmpty()
+                .map { it.toCharsString() }.toSet()
+        val currentSigners = signers(installed)
+        val requiresWatch = archive.reqFeatures.orEmpty().any {
+            it.name == PackageManager.FEATURE_WATCH && it.flags and android.content.pm.FeatureInfo.FLAG_REQUIRED != 0
         }
-    }
-
-    fun verifyApkSignerMatchesCurrentApp(context: Context, apkFile: File): Boolean {
-        return try {
-            val pm = context.packageManager
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                PackageManager.GET_SIGNING_CERTIFICATES
-            } else {
-                @Suppress("DEPRECATION")
-                PackageManager.GET_SIGNATURES
-            }
-
-            val archiveInfo = pm.getPackageArchiveInfo(apkFile.absolutePath, flags) ?: return false
-            val currentPkgInfo = pm.getPackageInfo(context.packageName, flags)
-
-            val currentSha = getSignatureSha256(currentPkgInfo)
-            val archiveSha = getSignatureSha256(archiveInfo)
-
-            Log.i(TAG, "Signature check -> Current: $currentSha, Archive: $archiveSha")
-            currentSha != null && currentSha == archiveSha
-        } catch (e: Exception) {
-            Log.e(TAG, "Signature verification error", e)
-            false
-        }
-    }
-
-    private fun getSignatureSha256(pkgInfo: android.content.pm.PackageInfo): String? {
-        return try {
-            val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                pkgInfo.signingInfo?.apkContentsSigners ?: pkgInfo.signingInfo?.signingCertificateHistory
-            } else {
-                @Suppress("DEPRECATION")
-                pkgInfo.signatures
-            }
-            val cert = signatures?.firstOrNull()?.toByteArray() ?: return null
-            val md = MessageDigest.getInstance("SHA-256")
-            val digest = md.digest(cert)
-            digest.joinToString("") { "%02X".format(it) }
-        } catch (_: Exception) {
-            null
-        }
-    }
+        archive.packageName == context.packageName && !requiresWatch && version > installedVersion &&
+            (expectedCode == null || version == expectedCode.toLong()) &&
+            currentSigners.isNotEmpty() && currentSigners == signers(archive) &&
+            (archive.applicationInfo?.minSdkVersion ?: Int.MAX_VALUE) <= Build.VERSION.SDK_INT
+    }.getOrDefault(false)
 
     fun installPhoneApk(context: Context, apkFile: File): Result<Unit> {
         return try {
-            if (!apkFile.exists()) {
-                return Result.failure(Exception("ملف التحديث غير موجود"))
+            check(verifyApkSignerMatchesCurrentApp(context, apkFile)) {
+                "تعذر التثبيت: الحزمة أو التوقيع غير مطابق، أو الإصدار ليس أحدث"
             }
 
             // Check Unknown Sources permission on Android 8+
@@ -392,31 +347,26 @@ object UpdateManager {
     suspend fun transferBridgeApkToWatch(
         context: Context,
         apkFile: File,
+        requiredVersion: Int,
         onProgress: (String) -> Unit
     ): Result<Unit> = withContext(Dispatchers.IO) {
         try {
-            if (!apkFile.exists()) {
-                return@withContext Result.failure(Exception("ملف تحديث WearBridge غير موجود"))
+            val bridge = findWatchBridge(context) ?: error("لم يرد WearBridge من أي ساعة متصلة")
+            check(bridge.protocol == 2) { "ثبّت إصدار WearBridge المتوافق على الساعة من مصدره الرسمي أولاً" }
+            check(requiredVersion > bridge.versionCode) { "WearBridge المتصل يستخدم إصداراً مساوياً أو أحدث" }
+            val response = transferVerifiedWatchApk(context, bridge, apkFile, context.packageName, "bridge") { sent ->
+                onProgress(if (sent) "انتظار تأكيد الساعة لحفظ التحديث..." else "نقل التحديث إلى ${bridge.node.displayName}...")
             }
-
-            onProgress("جاري الاتصال بالساعة عبر البلوتوث...")
-            val nodeClient = Wearable.getNodeClient(context)
-            val nodes = nodeClient.connectedNodes.await()
-            val watchNode = nodes.firstOrNull()
-                ?: return@withContext Result.failure(Exception("لم يتم العثور على ساعة متصلة حالياً"))
-
-            onProgress("فتح قناة نقل التحديث إلى ${watchNode.displayName}...")
-            val channelClient = Wearable.getChannelClient(context)
-            val channel = channelClient.openChannel(watchNode.id, "/nocturne/update_bridge_channel").await()
-
-            onProgress("جاري إرسال حزمة WearBridge إلى الساعة...")
-            val fileUri = Uri.fromFile(apkFile)
-            channelClient.sendFile(channel, fileUri).await()
-
-            onProgress("اكتمل نقل التحديث إلى الساعة بنجاح! افتح شاشة الساعة لتأكيد التثبيت.")
+            check(response.optBoolean("success") && response.optString("stage") == "UPDATE_READY") {
+                response.optString("error", "لم تؤكد الساعة أن حزمة التحديث جاهزة")
+            }
             Result.success(Unit)
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            Result.failure(IllegalStateException("لم تؤكد الساعة استلام تحديث WearBridge"))
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to transfer bridge apk", e)
+            Log.e(TAG, "Failed to stage Bridge update", e)
             Result.failure(e)
         }
     }
