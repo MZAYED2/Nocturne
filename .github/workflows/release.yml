@@ -84,7 +84,7 @@ jobs:
           bash tools/build_all_wff.sh "${{ steps.version.outputs.vcode }}" "${{ steps.version.outputs.raw_version }}"
           bash tools/build_all_wff.sh --studio-navy "${{ steps.version.outputs.vcode }}" "${{ steps.version.outputs.raw_version }}"
           node tools/release-manifest.mjs catalog "${{ steps.version.outputs.tag }}" "${{ steps.version.outputs.vcode }}"
-          cp distribution/Nocturne-Emerald-Push.apk wear-bridge/src/main/assets/
+          cp distribution/Nocturne-Sage-Push.apk wear-bridge/src/main/assets/
 
       - name: Build Wear Bridge and Phone App
         env:
@@ -112,7 +112,6 @@ jobs:
           cp "distribution/Nocturne-Sage-Push.apk" "release-apks/Nocturne-Sage-Push.apk"
           cp "distribution/Nocturne-Lunar-Push.apk" "release-apks/Nocturne-Lunar-Push.apk"
           cp "distribution/Nocturne-Obsidian-Push.apk" "release-apks/Nocturne-Obsidian-Push.apk"
-          cp "distribution/Nocturne-Emerald-Push.apk" "release-apks/Nocturne-Emerald-Push.apk"
           
           # 4. Catalog Manifest
           cp "distribution/catalog.json" "release-apks/catalog.json"

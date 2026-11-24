@@ -40,8 +40,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import com.mohamedzayed.nocturne.ConnectedBridge
-import com.mohamedzayed.nocturne.findWatchBridge
+import com.mohamedzayed.nocturne.wear.ConnectedBridge
+import com.mohamedzayed.nocturne.wear.WearBridgeManager.findWatchBridge
 import kotlinx.coroutines.delay
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf

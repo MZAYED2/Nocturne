@@ -1,11 +1,244 @@
 <resources>
     <string name="app_name">Nocturne</string>
-    <string name="companion_subtitle">مرافق واجهة الساعة</string>
-    <string name="apply_to_watch">تطبيق على الساعة</string>
-    <string name="open_galaxy_wearable">فتح في Galaxy Wearable</string>
-    <string name="theme_sage_nocturne">Sage Nocturne (العثماني الأخضر)</string>
-    <string name="theme_lunar_phase">Lunar Phase (القمر السينمائي)</string>
-    <string name="theme_obsidian_atelier">Obsidian Atelier (الميكانيكي الفاخر)</string>
-    <string name="active_mode">الوضع النشط (Active)</string>
-    <string name="aod_mode">وضع الاستعداد (AOD)</string>
+    <string name="tagline">الساعات الميكانيكية الفاخرة والتراثية</string>
+    <string name="companion_subtitle">مرافق واجهات الساعة</string>
+
+    <!-- Navigation -->
+    <string name="nav_library">المكتبة</string>
+    <string name="nav_studio">الاستوديو</string>
+    <string name="nav_my_watch">ساعتي</string>
+    <string name="nav_settings">الإعدادات</string>
+
+    <!-- Library & Discovery -->
+    <string name="library_title">مكتبة الواجهات</string>
+    <string name="library_count">%1$d واجهات رئيسية</string>
+    <string name="search_hint">ابحث عن واجهة ساعة...</string>
+    <string name="no_faces_found">لم يتم العثور على واجهات</string>
+    <string name="no_faces_found_desc">جرّب تغيير عبارة البحث أو اختيار تصنيف آخر.</string>
+    <string name="favorite_added">تمت الإضافة إلى المفضلة</string>
+    <string name="favorite_removed">تمت الإزالة من المفضلة</string>
+
+    <!-- Categories -->
+    <string name="category_all">الكل</string>
+    <string name="category_classic">كلاسيكي</string>
+    <string name="category_minimal">بسيط</string>
+    <string name="category_islamic">إسلامي</string>
+    <string name="category_luxury">فاخر</string>
+    <string name="category_digital">رقمي</string>
+    <string name="category_astronomy">فلكي</string>
+    <string name="category_favorites">المفضلة</string>
+    <string name="category_my_presets">قوالبي الخاصة</string>
+    <string name="category_manage_title">إدارة التصنيفات</string>
+    <string name="category_add_new">تصنيف جديد</string>
+    <string name="category_name_hint">اسم التصنيف</string>
+    <string name="category_created">تم إنشاء التصنيف</string>
+    <string name="category_deleted">تم حذف التصنيف</string>
+    <string name="category_cannot_delete_system">لا يمكن حذف التصنيفات الأساسية للنظام</string>
+
+    <!-- Watch Face Detail -->
+    <string name="detail_title">تفاصيل الواجهة</string>
+    <string name="btn_customize">تخصيص في الاستوديو</string>
+    <string name="btn_apply_to_watch">تطبيق على الساعة</string>
+    <string name="btn_share">مشاركة</string>
+    <string name="btn_save_preset">حفظ كقالب جديد</string>
+    <string name="section_overview">نظرة عامة</string>
+    <string name="section_specifications">المواصفات الفنية</string>
+    <string name="section_presets">القوالب والتنويعات</string>
+    <string name="format_wff">صيغة واجهات Wear OS (WFF 1.0)</string>
+    <string name="package_label">الحزمة</string>
+    <string name="version_label">الإصدار</string>
+    <string name="size_label">الحجم</string>
+    <string name="status_active_watch">نشط حالياً على الساعة</string>
+    <string name="status_installed_watch">مثبت على الساعة</string>
+    <string name="status_available">جاهز للإرسال والتثبيت</string>
+
+    <!-- Customization Studio -->
+    <string name="studio_title">استوديو التخصيص</string>
+    <string name="studio_subtitle">محرر الميناء والتعقيدات التفاعلي</string>
+    <string name="tab_appearance">المظهر</string>
+    <string name="tab_complications">التعقيدات</string>
+    <string name="tab_presets">القوالب</string>
+    <string name="mode_active">الوضع النشط (Active)</string>
+    <string name="mode_aod">وضع الاستعداد (AOD)</string>
+    <string name="preview_active">نشط</string>
+    <string name="preview_aod">سكون AOD</string>
+    <string name="section_background">لون الخلفية</string>
+    <string name="section_accent">لون التمييز (Accent)</string>
+    <string name="section_ornament">نمط الزخرفة</string>
+    <string name="section_dial">أرقام وعلامات الميناء</string>
+
+    <string name="ornament_balanced">متوازن</string>
+    <string name="ornament_minimal">بسيط</string>
+    <string name="ornament_ornate">مزخرف</string>
+    <string name="ornament_none">بدون زخرفة</string>
+
+    <string name="dial_full">جميع الأرقام</string>
+    <string name="dial_cardinal">الأرباع فقط</string>
+    <string name="dial_markers">علامات فقط</string>
+
+    <string name="bg_black">أسود خالص نقي</string>
+    <string name="bg_navy">أزرق ليلي ملكي</string>
+    <string name="bg_teal">تركواز غابي داكن</string>
+    <string name="bg_warm">أسود دافئ</string>
+    <string name="bg_graphite">جرافيت مدخن</string>
+
+    <string name="accent_sage">أخضر سيج عثماني</string>
+    <string name="accent_blue">أزرق نيلي</string>
+    <string name="accent_gold">ذهبي عتيق</string>
+    <string name="accent_emerald">أخضر زمردي</string>
+    <string name="accent_silver">فضي قمري</string>
+
+    <string name="moon_phase_slider">محاكاة منزلة القمر</string>
+    <string name="moon_phase_day">يوم الطور: %1$d/28 (%2$s)</string>
+
+    <!-- Studio Deployment Honesty -->
+    <string name="deployment_capability">إمكانية التثبيت على الساعة</string>
+    <string name="deployment_status_master">حزمة WFF رئيسية معتمدة (قابلة للتثبيت)</string>
+    <string name="deployment_status_variant">تنويعة معتمدة: Sage Navy (قابلة للتثبيت)</string>
+    <string name="deployment_status_preview_only">قالب محلي (للمعاينة والحفظ في التطبيق فقط)</string>
+    <string name="deployment_note_preview_only">التثبيت المباشر لهذا المزيج المخصص على الساعة يتطلب مترجم WFF ديناميكي. يمكنك حفظ القالب ومعاينته في تطبيق الموبايل، أو تثبيت الواجهة المعتمدة الأصلية على الساعة.</string>
+
+    <string name="btn_reset_defaults">استعادة الواجهة الأصلية</string>
+    <string name="btn_save_current_preset">حفظ كقالب</string>
+    <string name="btn_duplicate_preset">تكرار</string>
+    <string name="btn_rename_preset">إعادة تسمية</string>
+    <string name="btn_delete_preset">حذف</string>
+    <string name="btn_archive_preset">أرشفة</string>
+    <string name="btn_restore_preset">استعادة</string>
+    <string name="btn_export_preset">تصدير ملف JSON</string>
+    <string name="btn_import_preset">استيراد ملف JSON</string>
+    <string name="preset_saved">تم حفظ القالب بنجاح</string>
+    <string name="preset_deleted">تم حذف القالب</string>
+    <string name="preset_exported">تم تصدير ملف القالب بنجاح</string>
+    <string name="preset_imported">تم استيراد القالب بنجاح</string>
+    <string name="preset_name_hint">اسم القالب</string>
+    <string name="confirm_delete_preset">هل تريد بالتأكيد حذف القالب \"%1$s\"؟</string>
+    <string name="confirm_delete_title">تأكيد الحذف</string>
+
+    <!-- My Watch Screen -->
+    <string name="my_watch_title">ساعتي المتصلة</string>
+    <string name="watch_connected">متصل بساعة Galaxy Watch</string>
+    <string name="watch_disconnected">لا توجد ساعة متوافقة متصلة</string>
+    <string name="watch_status_scanning">جاري البحث عن ساعة Wear OS...</string>
+    <string name="watch_device_name">الجهاز: %1$s</string>
+    <string name="bridge_protocol_active">بروتوكول WearBridge نشط (v1.0.8)</string>
+    <string name="bridge_protocol_inactive">تطبيق WearBridge غير مثبت أو غير نشط</string>
+    <string name="installed_slots_title">الواجهات المثبتة على الساعة</string>
+    <string name="remaining_slots">الخانات المتبقية: %1$d</string>
+    <string name="btn_remove_slot">إلغاء التثبيت من الساعة</string>
+    <string name="btn_open_galaxy_wearable">فتح Galaxy Wearable</string>
+    <string name="btn_retry_connection">إعادة المحاولة</string>
+    <string name="troubleshooting_title">إرشادات حل مشكلات الاتصال</string>
+    <string name="troubleshooting_step1">1. تأكد من تشغيل البلوتوث أو الواي فاي واقتران الهاتف بالساعة.</string>
+    <string name="troubleshooting_step2">2. ثبّت تطبيق Nocturne-WearBridge على الساعة (عبر GeminiMan Wear OS Manager أو التثبيت المباشر).</string>
+    <string name="troubleshooting_step3">3. افتح تطبيق Nocturne WearBridge على الساعة مرة واحدة لمنح أذونات التثبيت.</string>
+
+    <!-- Push Progress -->
+    <string name="push_progress_downloading">جاري تحميل حزمة الواجهة (%1$d%%)...</string>
+    <string name="push_progress_validating">جاري التحقق من التوقيع والأمان المشفر...</string>
+    <string name="push_progress_connecting">جاري الاتصال بجسر الساعة اللاسلكي...</string>
+    <string name="push_progress_transferring">جاري إرسال الحزمة لاسلكياً (%1$d%%)...</string>
+    <string name="push_progress_installing">جاري التثبيت والتفعيل على Wear OS 6...</string>
+    <string name="push_success">تم تطبيق واجهة الساعة بنجاح وتفعيلها!</string>
+    <string name="push_error">تعذر التثبيت: %1$s</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">الإعدادات والتفضيلات</string>
+    <string name="settings_language_title">لغة التطبيق</string>
+    <string name="settings_language_subtitle">اختر لغة واجهة تطبيق الموبايل</string>
+    <string name="language_system">تلقائي (حسب لغة النظام)</string>
+    <string name="language_arabic">العربية</string>
+    <string name="language_english">English (الإنجليزية)</string>
+    <string name="settings_appearance_title">المظهر والألوان</string>
+    <string name="settings_appearance_subtitle">فخامة هادئة (Midnight Luxury: الفحم والذهب الشمبانيا)</string>
+    <string name="settings_updates_title">التحديثات والإصدارات</string>
+    <string name="settings_updates_check">التحقق من التحديثات</string>
+    <string name="settings_updates_checking">جاري فحص إصدارات GitHub...</string>
+    <string name="settings_updates_latest">أنت تستخدم أحدث إصدار متوفر (%1$s)</string>
+    <string name="settings_updates_available">يتوفر إصدار جديد: %1$s</string>
+    <string name="settings_updates_auto">التحقق التلقائي من التحديثات</string>
+    <string name="settings_updates_wifi">التحديث عبر الواي فاي فقط</string>
+    <string name="settings_about_title">عن تطبيق Nocturne</string>
+    <string name="settings_about_version">الإصدار %1$s (رقم البناء %2$d)</string>
+    <string name="settings_about_desc">تطبيق Nocturne هو منصة فاخرة لإدارة وتخصيص وتثبيت واجهات الساعات الميكانيكية والتراثية بصيغة Watch Face Format على ساعات Wear OS 6.</string>
+    <string name="settings_developer">تصميم وتطوير بدقة متناهية: محمد زايد</string>
+    <string name="settings_github_repo">مستودع المشروع على GitHub</string>
+    <string name="settings_diagnostics_title">تشخيص النظام والجسر</string>
+
+    <!-- Common Actions & Dialogs -->
+    <string name="btn_cancel">إلغاء</string>
+    <string name="btn_confirm">تأكيد</string>
+    <string name="btn_back">رجوع</string>
+    <string name="btn_save">حفظ</string>
+    <string name="btn_close">إغلاق</string>
+    <string name="btn_add">إضافة</string>
+    <string name="btn_edit">تعديل</string>
+    <string name="btn_delete">حذف</string>
+
+    <!-- Master Watch Face Names -->
+    <string name="theme_sage_nocturne">Sage</string>
+    <string name="theme_lunar_phase">Lunar</string>
+    <string name="theme_obsidian_atelier">Obsidian</string>
+
+    <!-- Recently Used -->
+    <string name="section_recently_used">المستخدمة مؤخراً</string>
+
+    <!-- Favorites in My Watch -->
+    <string name="section_favorites_title">الواجهات المفضلة</string>
+    <string name="empty_favorites_msg">لا توجد واجهات مفضلة بعد. اضغط على القلب لإضافة واجهة إلى المفضلة.</string>
+    <string name="btn_browse_library">تصفح المكتبة</string>
+
+    <!-- Quick Switch -->
+    <string name="quick_switch_title">التبديل السريع</string>
+    <string name="btn_switch">تبديل</string>
+
+    <!-- Slots Clarification -->
+    <string name="slots_title">خانات تثبيت الواجهات على الساعة</string>
+    <string name="slots_connected_desc">%1$d خانات مستخدمة (%2$s متبقية)</string>
+    <string name="slots_disconnected_desc">اتصل بساعتك لمعاينة خانات التثبيت</string>
+    <string name="slots_status_unknown">حالة الخانات: غير متاحة (الساعة غير متصلة)</string>
+    <string name="slots_explanation">يدير نظام Wear OS خانات تثبيت ديناميكية على الساعة. بينما مكتبتك على الهاتف غير محدودة.</string>
+
+    <!-- Automatic Rotation -->
+    <string name="rotation_title">التبديل التلقائي</string>
+    <string name="rotation_subtitle">تبديل واجهات الساعة دورياً تلقائياً عند اتصال الساعة</string>
+    <string name="rotation_enable">تفعيل التبديل التلقائي</string>
+    <string name="rotation_interval_label">المدة الزمنية للتبديل</string>
+    <string name="rotation_interval_1h">كل ساعة</string>
+    <string name="rotation_interval_3h">كل 3 ساعات</string>
+    <string name="rotation_interval_6h">كل 6 ساعات</string>
+    <string name="rotation_interval_12h">كل 12 ساعة</string>
+    <string name="rotation_interval_24h">كل 24 ساعة</string>
+    <string name="rotation_order_label">ترتيب التبديل</string>
+    <string name="rotation_order_sequential">ترتيب متتالي</string>
+    <string name="rotation_order_random">ترتيب عشوائي</string>
+    <string name="rotation_participating_label">الواجهات المشاركة (على الأقل واجهتان)</string>
+    <string name="rotation_note_connection">ملاحظة: يتطلب التبديل التلقائي اتصال الساعة عبر البلوتوث أو الواي فاي. في حال عدم الاتصال، يتم تخطي المحاولة بأمان دون أخطاء.</string>
+    <string name="rotation_last_switch">آخر تبديل: %1$s (%2$s)</string>
+    <string name="rotation_last_none">لم يتم أي تبديل تلقائي بعد</string>
+
+    <!-- Customization Editor Actions -->
+    <string name="btn_undo">تراجع</string>
+    <string name="btn_redo">إعادة</string>
+
+    <!-- Backup & Restore -->
+    <string name="backup_title">النسخ الاحتياطي والاستعادة</string>
+    <string name="backup_subtitle">تصدير أو استعادة التفضيلات والواجهات المحفوظة</string>
+    <string name="btn_export_backup">تصدير نسخة احتياطية</string>
+    <string name="btn_import_backup">استعادة نسخة احتياطية</string>
+    <string name="backup_exported_toast">تم نسخ بيانات النسخة الاحتياطية</string>
+    <string name="backup_imported_toast">تمت استعادة البيانات بنجاح</string>
+    <string name="backup_import_hint">الصق نص النسخة الاحتياطية JSON هنا...</string>
+
+    <!-- Verified Technical Specification -->
+    <string name="format_wff_verified">صيغة واجهات الساعات (WFF 1)</string>
+    <string name="spec_format_label">التنسيق</string>
+
+    <!-- Dual App Themes -->
+    <string name="settings_theme_title">مظهر التطبيق</string>
+    <string name="settings_theme_subtitle">اختر المظهر المرئي الفاخر للتطبيق</string>
+    <string name="theme_midnight_gold">ميدنايت جولد</string>
+    <string name="theme_midnight_gold_desc">فحم داكن مع لمسات الذهب الشامباني الدافئ</string>
+    <string name="theme_obsidian_sage">أوبسيديان سيج</string>
+    <string name="theme_obsidian_sage_desc">حجر بركاني مدخن مع لمسات الميرمية النباتية الفاخرة</string>
 </resources>

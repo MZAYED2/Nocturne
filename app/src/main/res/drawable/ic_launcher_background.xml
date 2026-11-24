@@ -11,8 +11,8 @@
                 android:centerX="54"
                 android:centerY="52"
                 android:gradientRadius="62"
-                android:startColor="#FF0D2633"
-                android:endColor="#FF030C13"
+                android:startColor="#FF101317"
+                android:endColor="#FF0A0C0E"
                 android:type="radial" />
         </aapt:attr>
     </path>

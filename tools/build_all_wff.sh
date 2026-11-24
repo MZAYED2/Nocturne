@@ -152,6 +152,5 @@ fi
 build_wff "Sage Nocturne" "sage_nocturne" "$PROJECT_ROOT/tools/watchface_sage.xml" "Nocturne-Sage-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.sage" "$WFF_VERSION_CODE" "$WFF_VERSION_NAME" "Ottoman Sage Green heritage dial"
 build_wff "Lunar Phase" "lunar_phase" "$PROJECT_ROOT/tools/watchface_lunar.xml" "Nocturne-Lunar-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.lunar" "$WFF_VERSION_CODE" "$WFF_VERSION_NAME" "Large poetic astronomical moon disc"
 build_wff "Obsidian Atelier" "obsidian_atelier" "$PROJECT_ROOT/tools/watchface_obsidian.xml" "Nocturne-Obsidian-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.obsidian" "$WFF_VERSION_CODE" "$WFF_VERSION_NAME" "Mechanical luxury dial with small seconds and power reserve"
-build_wff "Emerald Nocturne" "emerald_nocturne" "$PROJECT_ROOT/tools/watchface_emerald.xml" "Nocturne-Emerald-Push.apk" "com.mohamedzayed.nocturne.watchfacepush.emerald" "$WFF_VERSION_CODE" "$WFF_VERSION_NAME" "Imperial Emerald and Gold edition (Legacy Backup)"
 
-echo "All WFF Packages Built and Validated Successfully!"
+echo "All 3 Master WFF Packages Built and Validated Successfully!"

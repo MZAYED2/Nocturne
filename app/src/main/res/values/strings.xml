@@ -1,11 +1,244 @@
 <resources>
     <string name="app_name">Nocturne</string>
+    <string name="tagline">Haute Horlogerie &amp; Heritage Watch Faces</string>
     <string name="companion_subtitle">Watch Face Companion</string>
-    <string name="apply_to_watch">Apply to Watch</string>
-    <string name="open_galaxy_wearable">Open in Galaxy Wearable</string>
-    <string name="theme_sage_nocturne">Sage Nocturne</string>
-    <string name="theme_lunar_phase">Lunar Phase</string>
-    <string name="theme_obsidian_atelier">Obsidian Atelier</string>
-    <string name="active_mode">Active</string>
-    <string name="aod_mode">AOD</string>
+
+    <!-- Navigation -->
+    <string name="nav_library">Library</string>
+    <string name="nav_studio">Studio</string>
+    <string name="nav_my_watch">My Watch</string>
+    <string name="nav_settings">Settings</string>
+
+    <!-- Library & Discovery -->
+    <string name="library_title">Watch Face Library</string>
+    <string name="library_count">%1$d Master Faces</string>
+    <string name="search_hint">Search watch faces...</string>
+    <string name="no_faces_found">No watch faces found</string>
+    <string name="no_faces_found_desc">Try adjusting your search query or category filter.</string>
+    <string name="favorite_added">Added to favorites</string>
+    <string name="favorite_removed">Removed from favorites</string>
+
+    <!-- Categories -->
+    <string name="category_all">All</string>
+    <string name="category_classic">Classic</string>
+    <string name="category_minimal">Minimal</string>
+    <string name="category_islamic">Islamic</string>
+    <string name="category_luxury">Luxury</string>
+    <string name="category_digital">Digital</string>
+    <string name="category_astronomy">Astronomy</string>
+    <string name="category_favorites">Favorites</string>
+    <string name="category_my_presets">My Presets</string>
+    <string name="category_manage_title">Manage Categories</string>
+    <string name="category_add_new">New Category</string>
+    <string name="category_name_hint">Category name</string>
+    <string name="category_created">Category created</string>
+    <string name="category_deleted">Category deleted</string>
+    <string name="category_cannot_delete_system">System categories cannot be deleted</string>
+
+    <!-- Watch Face Detail -->
+    <string name="detail_title">Watch Face Details</string>
+    <string name="btn_customize">Customize in Studio</string>
+    <string name="btn_apply_to_watch">Apply to Watch</string>
+    <string name="btn_share">Share</string>
+    <string name="btn_save_preset">Save Preset</string>
+    <string name="section_overview">Overview</string>
+    <string name="section_specifications">Specifications</string>
+    <string name="section_presets">Presets &amp; Variants</string>
+    <string name="format_wff">Wear OS Watch Face Format (WFF 1.0)</string>
+    <string name="package_label">Package</string>
+    <string name="version_label">Version</string>
+    <string name="size_label">Size</string>
+    <string name="status_active_watch">Active on Watch</string>
+    <string name="status_installed_watch">Installed on Watch</string>
+    <string name="status_available">Available for Push</string>
+
+    <!-- Customization Studio -->
+    <string name="studio_title">Customization Studio</string>
+    <string name="studio_subtitle">Interactive Dial &amp; Complication Editor</string>
+    <string name="tab_appearance">Appearance</string>
+    <string name="tab_complications">Complications</string>
+    <string name="tab_presets">Presets</string>
+    <string name="mode_active">Active Mode</string>
+    <string name="mode_aod">AOD (Ambient)</string>
+    <string name="preview_active">Active</string>
+    <string name="preview_aod">AOD</string>
+    <string name="section_background">Background Color</string>
+    <string name="section_accent">Accent Color</string>
+    <string name="section_ornament">Ornament Style</string>
+    <string name="section_dial">Dial Numerals</string>
+
+    <string name="ornament_balanced">Balanced</string>
+    <string name="ornament_minimal">Minimal</string>
+    <string name="ornament_ornate">Ornate</string>
+    <string name="ornament_none">None</string>
+
+    <string name="dial_full">Full Numerals</string>
+    <string name="dial_cardinal">Cardinal Only</string>
+    <string name="dial_markers">Indices Only</string>
+
+    <string name="bg_black">Deep Pure Black</string>
+    <string name="bg_navy">Midnight Navy</string>
+    <string name="bg_teal">Dark Forest Teal</string>
+    <string name="bg_warm">Warm Obsidian</string>
+    <string name="bg_graphite">Smoked Graphite</string>
+
+    <string name="accent_sage">Ottoman Sage Green</string>
+    <string name="accent_blue">Indigo Navy</string>
+    <string name="accent_gold">Antique Gold</string>
+    <string name="accent_emerald">Emerald Green</string>
+    <string name="accent_silver">Lunar Silver</string>
+
+    <string name="moon_phase_slider">Simulate Moon Phase</string>
+    <string name="moon_phase_day">Phase Day: %1$d/28 (%2$s)</string>
+
+    <!-- Studio Deployment Honesty -->
+    <string name="deployment_capability">Deployment Capability</string>
+    <string name="deployment_status_master">Master Validated WFF Package (Deployable)</string>
+    <string name="deployment_status_variant">Validated Studio Variant: Sage Navy (Deployable)</string>
+    <string name="deployment_status_preview_only">Local Preset (Preview &amp; Saveable only)</string>
+    <string name="deployment_note_preview_only">Custom watch compilation for this combination requires a dynamic WFF compiler. You can save and preview this preset in the companion app, or deploy the validated Master watch face.</string>
+
+    <string name="btn_reset_defaults">Reset to Master</string>
+    <string name="btn_save_current_preset">Save as Preset</string>
+    <string name="btn_duplicate_preset">Duplicate</string>
+    <string name="btn_rename_preset">Rename</string>
+    <string name="btn_delete_preset">Delete</string>
+    <string name="btn_archive_preset">Archive</string>
+    <string name="btn_restore_preset">Restore</string>
+    <string name="btn_export_preset">Export JSON</string>
+    <string name="btn_import_preset">Import JSON</string>
+    <string name="preset_saved">Preset saved successfully</string>
+    <string name="preset_deleted">Preset deleted</string>
+    <string name="preset_exported">Preset exported to file</string>
+    <string name="preset_imported">Preset imported successfully</string>
+    <string name="preset_name_hint">Preset name</string>
+    <string name="confirm_delete_preset">Delete \"%1$s\" from your presets?</string>
+    <string name="confirm_delete_title">Confirm Deletion</string>
+
+    <!-- My Watch Screen -->
+    <string name="my_watch_title">My Watch</string>
+    <string name="watch_connected">Connected to Galaxy Watch</string>
+    <string name="watch_disconnected">No Compatible Watch Connected</string>
+    <string name="watch_status_scanning">Scanning for Wear OS watch...</string>
+    <string name="watch_device_name">Device: %1$s</string>
+    <string name="bridge_protocol_active">WearBridge Protocol Active (v1.0.8)</string>
+    <string name="bridge_protocol_inactive">WearBridge Not Detected</string>
+    <string name="installed_slots_title">Installed Watch Faces</string>
+    <string name="remaining_slots">Remaining Slots: %1$d</string>
+    <string name="btn_remove_slot">Remove from Watch</string>
+    <string name="btn_open_galaxy_wearable">Open Galaxy Wearable</string>
+    <string name="btn_retry_connection">Refresh Connection</string>
+    <string name="troubleshooting_title">Connection Troubleshooting</string>
+    <string name="troubleshooting_step1">1. Ensure Bluetooth or Wi-Fi is active and paired with your watch.</string>
+    <string name="troubleshooting_step2">2. Install Nocturne-WearBridge on your watch (via GeminiMan Wear OS Manager or direct install).</string>
+    <string name="troubleshooting_step3">3. Open Nocturne WearBridge on your watch once to grant installation permissions.</string>
+
+    <!-- Push Progress -->
+    <string name="push_progress_downloading">Downloading package (%1$d%%)...</string>
+    <string name="push_progress_validating">Verifying cryptographic integrity...</string>
+    <string name="push_progress_connecting">Connecting to Wear OS WatchBridge...</string>
+    <string name="push_progress_transferring">Wirelessly transferring package (%1$d%%)...</string>
+    <string name="push_progress_installing">Applying watch face on Wear OS 6...</string>
+    <string name="push_success">Watch face applied successfully to watch!</string>
+    <string name="push_error">Deployment failed: %1$s</string>
+
+    <!-- Settings Screen -->
+    <string name="settings_title">Settings &amp; Preferences</string>
+    <string name="settings_language_title">App Language</string>
+    <string name="settings_language_subtitle">Choose companion app interface language</string>
+    <string name="language_system">Follow System</string>
+    <string name="language_arabic">العربية (Arabic)</string>
+    <string name="language_english">English</string>
+    <string name="settings_appearance_title">Theme &amp; Aesthetics</string>
+    <string name="settings_appearance_subtitle">Midnight Luxury (Charcoal &amp; Champagne Gold)</string>
+    <string name="settings_updates_title">Updates &amp; Releases</string>
+    <string name="settings_updates_check">Check for Updates</string>
+    <string name="settings_updates_checking">Checking GitHub Releases...</string>
+    <string name="settings_updates_latest">You are running the latest version (%1$s)</string>
+    <string name="settings_updates_available">New update available: %1$s</string>
+    <string name="settings_updates_auto">Check for updates automatically</string>
+    <string name="settings_updates_wifi">Wi-Fi only updates</string>
+    <string name="settings_about_title">About Nocturne</string>
+    <string name="settings_about_version">Version %1$s (%2$d)</string>
+    <string name="settings_about_desc">Nocturne is an Haute Horlogerie companion and Watch Face Format platform for Wear OS 6.</string>
+    <string name="settings_developer">Designed &amp; Engineered by Mohamed Zayed</string>
+    <string name="settings_github_repo">GitHub Repository</string>
+    <string name="settings_diagnostics_title">System Diagnostics</string>
+
+    <!-- Common Actions & Dialogs -->
+    <string name="btn_cancel">Cancel</string>
+    <string name="btn_confirm">Confirm</string>
+    <string name="btn_back">Back</string>
+    <string name="btn_save">Save</string>
+    <string name="btn_close">Close</string>
+    <string name="btn_add">Add</string>
+    <string name="btn_edit">Edit</string>
+    <string name="btn_delete">Delete</string>
+
+    <!-- Master Watch Face Names -->
+    <string name="theme_sage_nocturne">Sage</string>
+    <string name="theme_lunar_phase">Lunar</string>
+    <string name="theme_obsidian_atelier">Obsidian</string>
+
+    <!-- Recently Used -->
+    <string name="section_recently_used">Recently Used</string>
+
+    <!-- Favorites in My Watch -->
+    <string name="section_favorites_title">Favorite Watch Faces</string>
+    <string name="empty_favorites_msg">No favorites yet. Tap the heart on a watch face to save it here.</string>
+    <string name="btn_browse_library">Browse Library</string>
+
+    <!-- Quick Switch -->
+    <string name="quick_switch_title">Quick Switch</string>
+    <string name="btn_switch">Switch</string>
+
+    <!-- Slots Clarification -->
+    <string name="slots_title">Watch Face Installation Slots</string>
+    <string name="slots_connected_desc">%1$d slots installed (%2$s remaining)</string>
+    <string name="slots_disconnected_desc">Connect your watch to inspect installation slots</string>
+    <string name="slots_status_unknown">Slot status: Unavailable (Watch disconnected)</string>
+    <string name="slots_explanation">Wear OS manages dynamic Watch Face Push slots on your watch. Your Nocturne phone library is unlimited.</string>
+
+    <!-- Automatic Rotation -->
+    <string name="rotation_title">Automatic Rotation</string>
+    <string name="rotation_subtitle">Automatically cycle watch faces on your connected watch</string>
+    <string name="rotation_enable">Enable Automatic Rotation</string>
+    <string name="rotation_interval_label">Rotation Interval</string>
+    <string name="rotation_interval_1h">Every Hour</string>
+    <string name="rotation_interval_3h">Every 3 Hours</string>
+    <string name="rotation_interval_6h">Every 6 Hours</string>
+    <string name="rotation_interval_12h">Every 12 Hours</string>
+    <string name="rotation_interval_24h">Every 24 Hours</string>
+    <string name="rotation_order_label">Rotation Order</string>
+    <string name="rotation_order_sequential">Sequential</string>
+    <string name="rotation_order_random">Random</string>
+    <string name="rotation_participating_label">Participating Faces (Min. 2)</string>
+    <string name="rotation_note_connection">Automatic rotation requires your watch to be connected via Bluetooth or Wi-Fi. If disconnected, rotation safely skips without errors.</string>
+    <string name="rotation_last_switch">Last switch: %1$s (%2$s)</string>
+    <string name="rotation_last_none">No rotation recorded yet</string>
+
+    <!-- Customization Editor Actions -->
+    <string name="btn_undo">Undo</string>
+    <string name="btn_redo">Redo</string>
+
+    <!-- Backup & Restore -->
+    <string name="backup_title">Backup &amp; Restore</string>
+    <string name="backup_subtitle">Export or restore presets, favorites, and categories</string>
+    <string name="btn_export_backup">Export Backup</string>
+    <string name="btn_import_backup">Restore Backup</string>
+    <string name="backup_exported_toast">Backup copied to clipboard / ready to share</string>
+    <string name="backup_imported_toast">Backup restored successfully</string>
+    <string name="backup_import_hint">Paste backup JSON text here...</string>
+
+    <!-- Verified Technical Specification -->
+    <string name="format_wff_verified">Watch Face Format (WFF 1)</string>
+    <string name="spec_format_label">Format</string>
+
+    <!-- Dual App Themes -->
+    <string name="settings_theme_title">App Theme</string>
+    <string name="settings_theme_subtitle">Choose your luxury companion appearance</string>
+    <string name="theme_midnight_gold">Midnight Gold</string>
+    <string name="theme_midnight_gold_desc">Deep charcoal with warm champagne gold accents</string>
+    <string name="theme_obsidian_sage">Obsidian Sage</string>
+    <string name="theme_obsidian_sage_desc">Smoked slate with refined botanical sage accents</string>
 </resources>

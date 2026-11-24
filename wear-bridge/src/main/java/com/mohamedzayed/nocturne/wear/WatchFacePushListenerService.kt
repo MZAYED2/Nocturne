@@ -67,13 +67,23 @@ class WatchFacePushListenerService : WearableListenerService() {
                                         check(manager.listWatchFaces().installedWatchFaceDetails.none { it.slotId == target.slotId }) {
                                             "Wear OS did not confirm removal."
                                         }
+                                    } else if (request[1] == "activate") {
+                                        val target = manager.listWatchFaces().installedWatchFaceDetails
+                                            .firstOrNull { it.packageName == request.getOrNull(2) }
+                                            ?: error("Watch face is not installed in a Nocturne slot")
+                                        manager.setWatchFaceAsActive(target.slotId)
+                                        check(manager.isWatchFaceActive(target.packageName)) {
+                                            "Wear OS did not confirm activation."
+                                        }
                                     }
+                                    val slotsInfo = manager.listWatchFaces()
                                     val slots = org.json.JSONArray()
-                                    manager.listWatchFaces().installedWatchFaceDetails.forEach { face ->
+                                    slotsInfo.installedWatchFaceDetails.forEach { face ->
                                         slots.put(JSONObject().put("package", face.packageName)
                                             .put("active", manager.isWatchFaceActive(face.packageName)))
                                     }
                                     JSONObject().put("slots", slots)
+                                        .put("remainingSlotCount", slotsInfo.remainingSlotCount)
                                 }
                             } catch (e: kotlinx.coroutines.CancellationException) {
                                 throw e

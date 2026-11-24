@@ -78,7 +78,7 @@ class BridgeMainActivity : ComponentActivity() {
                     queryInstalledFaces()
                 },
                 onInstallFromAssets = { callback ->
-                    installEmeraldFromAssets(callback)
+                    installSageFromAssets(callback)
                 },
                 onCheckBridgeUpdate = {
                     val file = File(filesDir, "Nocturne-WearBridge-update.apk")
@@ -137,15 +137,15 @@ class BridgeMainActivity : ComponentActivity() {
         }
     }
 
-    private fun installEmeraldFromAssets(callback: (Boolean, String) -> Unit) {
+    private fun installSageFromAssets(callback: (Boolean, String) -> Unit) {
         lifecycleScope.launch {
             val result = withContext(Dispatchers.IO) {
-                val apk = File.createTempFile("emerald-", ".apk", cacheDir)
+                val apk = File.createTempFile("sage-", ".apk", cacheDir)
                 try {
                     val catalog = assets.open("catalog.json").bufferedReader().use { org.json.JSONObject(it.readText()) }
                     val faces = catalog.getJSONArray("watchfaces")
                     val entries = (0 until faces.length()).map(faces::getJSONObject)
-                    val face = entries.first { it.getString("id") == "emerald_nocturne" }
+                    val face = entries.first { it.getString("id") == "sage_nocturne" }
                     val digest = java.security.MessageDigest.getInstance("SHA-256")
                     assets.open(face.getString("apk_filename")).use { input ->
                         java.security.DigestInputStream(input, digest).use { verified ->
@@ -154,18 +154,18 @@ class BridgeMainActivity : ComponentActivity() {
                     }
                     val hash = digest.digest().joinToString("") { "%02x".format(it) }
                     check(apk.length() == face.getLong("size_bytes") && hash == face.getString("sha256")) {
-                        "حزمة Emerald المدمجة لا تطابق بيانات التحقق"
+                        "حزمة Sage المدمجة لا تطابق بيانات التحقق"
                     }
                     val slot = installWatchFace(
                         this@BridgeMainActivity, apk, face.getString("package_name"),
-                        face.getString("validation_token"), "local-emerald"
+                        face.getString("validation_token"), "local-sage"
                     ) {}
-                    true to "✓ تم التحقق من تفعيل Emerald في الخانة $slot"
+                    true to "✓ تم التحقق من تفعيل Sage في الخانة $slot"
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    Log.e(TAG, "Local Emerald installation failed", e)
-                    false to ("تعذر تفعيل Emerald: " + e.localizedMessage)
+                    Log.e(TAG, "Local Sage installation failed", e)
+                    false to ("تعذر تفعيل Sage: " + e.localizedMessage)
                 } finally {
                     apk.delete()
                 }
@@ -342,7 +342,7 @@ fun BridgeScreen(
         Button(
             onClick = {
                 isOperating = true
-                statusText = "جاري تثبيت وتفعيل Emerald فعلياً..."
+                statusText = "جاري تثبيت وتفعيل Sage فعلياً..."
                 onInstallFromAssets { success, msg ->
                     isOperating = false
                     statusText = msg
@@ -363,7 +363,7 @@ fun BridgeScreen(
                 )
             } else {
                 Text(
-                    text = "تثبيت Emerald من الذاكرة (اختبار فعلي)",
+                    text = "تثبيت Sage من الذاكرة (اختبار فعلي)",
                     color = Color(0xFFD8F3DC),
                     fontSize = 10.sp,
                     fontWeight = FontWeight.Bold

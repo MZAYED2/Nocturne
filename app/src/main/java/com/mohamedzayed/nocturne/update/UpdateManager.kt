@@ -11,8 +11,8 @@ import android.os.Build
 import android.provider.Settings
 import android.util.Log
 import androidx.core.content.FileProvider
-import com.mohamedzayed.nocturne.findWatchBridge
-import com.mohamedzayed.nocturne.transferVerifiedWatchApk
+import com.mohamedzayed.nocturne.wear.WearBridgeManager.findWatchBridge
+import com.mohamedzayed.nocturne.wear.WearBridgeManager.transferVerifiedWatchApk
 import com.mohamedzayed.nocturne.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException

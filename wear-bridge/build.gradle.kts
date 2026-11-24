@@ -8,7 +8,7 @@ plugins {
 val generatedBridgeAssets = layout.buildDirectory.dir("generated/watch-assets")
 val stageBridgeAssets = tasks.register<Sync>("stageBridgeAssets") {
     from(rootProject.layout.projectDirectory.dir("distribution")) {
-        include("Nocturne-Emerald-Push.apk", "catalog.json")
+        include("Nocturne-Sage-Push.apk", "catalog.json")
     }
     into(generatedBridgeAssets)
 }

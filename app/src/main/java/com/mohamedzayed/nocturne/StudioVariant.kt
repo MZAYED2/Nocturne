@@ -1,12 +1,15 @@
 package com.mohamedzayed.nocturne
 
 import android.content.Context
+import com.mohamedzayed.nocturne.data.DialSettings
+import com.mohamedzayed.nocturne.data.ThemePreset
+import com.mohamedzayed.nocturne.model.WatchFaceItem
 import org.json.JSONObject
 
 private const val SAGE_NAVY_PACKAGE = "com.mohamedzayed.nocturne.watchfacepush.sagenavy"
 private const val SAGE_NAVY_APK = "Nocturne-Sage-Navy-Push.apk"
 
-internal fun resolveStudioVariant(context: Context, master: WatchFaceItem, preset: ThemePreset): WatchFaceItem {
+fun resolveStudioVariant(context: Context, master: WatchFaceItem, preset: ThemePreset): WatchFaceItem {
     require(master.id == preset.parent && master.id == "sage_nocturne") {
         "This master has no validated Studio package."
     }

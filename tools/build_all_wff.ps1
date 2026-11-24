@@ -111,19 +111,19 @@ function Build-And-Validate-WFF($name, $id, $xmlFile, $outApkName, $desc, $previ
 }
 
 # 1. Sage Nocturne
-$sage = Build-And-Validate-WFF "Sage Nocturne" "sage_nocturne" "$PSScriptRoot\..\tools\watchface_sage.xml" "Nocturne-Sage-Push.apk" "Ottoman Sage Green heritage dial with engraved calligraphy, small moon phase, and active/AOD modes." "preview_sage.png"
+$sage = Build-And-Validate-WFF "Sage Nocturne" "sage_nocturne" "$PSScriptRoot\..\tools\watchface_sage.xml" "Nocturne-Sage-Push.apk" "Ottoman Sage Green heritage dial with authentic arabesque, small moon phase, and 3 complications." "preview_sage.png"
 
 # 2. Lunar Phase
 $lunar = Build-And-Validate-WFF "Lunar Phase" "lunar_phase" "$PSScriptRoot\..\tools\watchface_lunar.xml" "Nocturne-Lunar-Push.apk" "Large poetic astronomical moon disc filling the watch display, with luminous dual-contrast hands and minimal AOD dial." "preview_lunar.png"
 
-# 3. Emerald Nocturne (Test Modified Face)
-$emerald = Build-And-Validate-WFF "Emerald Nocturne" "emerald_nocturne" "$PSScriptRoot\..\tools\watchface_emerald.xml" "Nocturne-Emerald-Push.apk" "Imperial Emerald and Gold edition with ornate Ottoman pattern, golden hands, and emerald accents." "preview_emerald.png"
+# 3. Obsidian Atelier
+$obsidian = Build-And-Validate-WFF "Obsidian Atelier" "obsidian_atelier" "$PSScriptRoot\..\tools\watchface_obsidian.xml" "Nocturne-Obsidian-Push.apk" "Haute Horlogerie mechanical dial in Brushed Platinum and Smoked Graphite with small seconds and power reserve." "preview_obsidian.png"
 
 # Generate catalog.json
 $catalog = @{
-    version = 1
+    version = 7
     updated_at = (Get-Date -Format "yyyy-MM-ddTHH:mm:ssZ")
-    watchfaces = @($sage, $lunar, $emerald)
+    watchfaces = @($sage, $lunar, $obsidian)
 }
 
 $catalogJson = $catalog | ConvertTo-Json -Depth 5
