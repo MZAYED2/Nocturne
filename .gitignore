@@ -30,4 +30,5 @@ local.properties
 # Bytecode & intermediate tool outputs
 *.class
 tools/experimental_lunar/
+release-*/
 
