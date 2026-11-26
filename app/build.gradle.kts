@@ -9,7 +9,7 @@ val generatedWatchAssets = layout.buildDirectory.dir("generated/watch-assets")
 val stageWatchAssets = tasks.register<Sync>("stageWatchAssets") {
     val distribution = rootProject.layout.projectDirectory.dir("distribution")
     from(distribution) {
-        include("Nocturne-*-Push.apk", "Nocturne-Sage-Navy.json")
+        include("Nocturne-Sage-Navy.json")
         into("watchfaces")
     }
     from(distribution) { include("catalog.json") }
@@ -95,8 +95,14 @@ android {
         release {
             buildConfigField("String", "UPDATE_FEED_URL", "\"\"")
             signingConfig = signingConfigs.getByName("release")
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
             optimization {
-                enable = false
+                enable = true
             }
         }
         debug {

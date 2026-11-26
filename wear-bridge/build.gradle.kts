@@ -8,7 +8,7 @@ plugins {
 val generatedBridgeAssets = layout.buildDirectory.dir("generated/watch-assets")
 val stageBridgeAssets = tasks.register<Sync>("stageBridgeAssets") {
     from(rootProject.layout.projectDirectory.dir("distribution")) {
-        include("Nocturne-Sage-Push.apk", "catalog.json")
+        include("catalog.json")
     }
     into(generatedBridgeAssets)
 }
@@ -88,7 +88,8 @@ android {
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("release")
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
