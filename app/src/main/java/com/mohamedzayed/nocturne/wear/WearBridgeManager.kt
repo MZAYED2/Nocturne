@@ -150,7 +150,7 @@ object WearBridgeManager {
         kind: String,
         token: String = "",
         onProgress: (sent: Boolean) -> Unit
-    ): JSONObject = pushWatchFace(context, bridge, apkFile, packageName, token, kind, onProgress)
+    ): JSONObject = pushWatchFace(context, bridge, apkFile, packageName, token, kind, onProgress = { sent -> onProgress(sent) })
 
     suspend fun pushWatchFace(
         context: Context,
@@ -160,6 +160,26 @@ object WearBridgeManager {
         token: String = "",
         kind: String = "wff",
         onProgress: (Boolean) -> Unit
+    ): JSONObject = pushWatchFace(
+        context = context,
+        bridge = bridge,
+        apkFile = apkFile,
+        packageName = packageName,
+        token = token,
+        kind = kind,
+        onProgress = { transferred, total -> onProgress(transferred >= total) },
+        onStage = { _, _ -> }
+    )
+
+    suspend fun pushWatchFace(
+        context: Context,
+        bridge: ConnectedBridge,
+        apkFile: File,
+        packageName: String,
+        token: String = "",
+        kind: String = "wff",
+        onProgress: (bytesTransferred: Long, totalBytes: Long) -> Unit = { _, _ -> },
+        onStage: (stage: String, detail: String) -> Unit = { _, _ -> }
     ): JSONObject = withContext(Dispatchers.IO) {
         val size = apkFile.length()
         require(size in 1..MAX_WATCH_APK_BYTES) { "APK size unsupported: $size" }
@@ -175,44 +195,80 @@ object WearBridgeManager {
         val messageClient = Wearable.getMessageClient(context)
         val result = CompletableDeferred<JSONObject>()
         val listener = MessageClient.OnMessageReceivedListener { event ->
-            if (event.sourceNodeId == bridge.node.id && event.path == "/nocturne/push_result/$requestId") {
-                runCatching { JSONObject(String(event.data, Charsets.UTF_8)) }
-                    .onSuccess { result.complete(it) }
-                    .onFailure { result.completeExceptionally(it) }
+            if (event.sourceNodeId == bridge.node.id) {
+                if (event.path == "/nocturne/push_result/$requestId") {
+                    runCatching { JSONObject(String(event.data, Charsets.UTF_8)) }
+                        .onSuccess { result.complete(it) }
+                        .onFailure { result.completeExceptionally(it) }
+                } else if (event.path == "/nocturne/push_stage/$requestId") {
+                    val json = runCatching { JSONObject(String(event.data, Charsets.UTF_8)) }.getOrNull()
+                    if (json != null) {
+                        onStage(json.optString("stage", ""), json.optString("detail", ""))
+                    }
+                }
             }
         }
         val channels = Wearable.getChannelClient(context)
         val reply = try {
             messageClient.addListener(listener).await()
-            val channel = withTimeout(15000) {
+            onStage("CONNECT", "Connecting to watch channel...")
+            val channel = withTimeout(20000) {
                 channels.openChannel(bridge.node.id, "/nocturne/push_v2/$requestId").await()
             }
             try {
                 withTimeout(300000) {
-                    onProgress(false)
+                    onStage("TRANSFER", "Initiating wireless streaming...")
                     Log.i(TAG, "Sending $requestId $packageName bytes=$size sha256=$sha256")
-                    val stream = channels.getOutputStream(channel).await()
+                    val rawStream = channels.getOutputStream(channel).await()
+                    val bufferedStream = rawStream.buffered(64 * 1024)
+                    val dataOut = DataOutputStream(bufferedStream)
+
+                    // Write metadata header
+                    dataOut.writeUTF(metadata.toString())
+                    dataOut.flush()
+
+                    // Stream APK payload in 64 KB chunks with byte-level progress reporting
                     runInterruptible {
-                        DataOutputStream(stream.buffered()).use { output ->
-                            output.writeUTF(metadata.toString())
-                            apkFile.inputStream().use { input ->
-                                check(input.copyTo(output, 64 * 1024) == size) { "APK file size changed during transfer" }
+                        apkFile.inputStream().use { input ->
+                            val buffer = ByteArray(64 * 1024)
+                            var totalSent = 0L
+                            while (true) {
+                                val count = input.read(buffer)
+                                if (count < 0) break
+                                dataOut.write(buffer, 0, count)
+                                totalSent += count
+                                onProgress(totalSent, size)
                             }
-                            output.flush()
                         }
+                        dataOut.flush()
+                        bufferedStream.flush()
+                        rawStream.flush()
                     }
-                    onProgress(true)
-                    result.await()
+
+                    // CRITICAL: DO NOT close the stream yet!
+                    // Closing the stream prematurely sends a channel close frame to the watch
+                    // before the watch finishes processing the stream.
+                    // Keep stream open while waiting for the watch's acknowledgment and installation result.
+                    onStage("WAIT_RESULT", "Awaiting confirmation from watch...")
+                    val watchReply = result.await()
+
+                    try {
+                        dataOut.close()
+                    } catch (_: Exception) {}
+
+                    watchReply
                 }
             } finally {
-                channels.close(channel)
+                try {
+                    channels.close(channel).await()
+                } catch (_: Exception) {}
             }
         } finally {
             messageClient.removeListener(listener)
         }
         Log.i(TAG, "Watch result $requestId: $reply")
         if (reply.optBoolean("success")) {
-            check(reply.optLong("fileSize") == size && reply.optString("sha256") == sha256 &&
+            check(reply.optLong("fileSize") == size && reply.optString("sha256").equals(sha256, ignoreCase = true) &&
                     reply.optString("packageName") == packageName) { "Watch response does not match sent package" }
         }
         reply
@@ -232,7 +288,7 @@ object WearBridgeManager {
     }
 
     fun isApkFileValid(file: File): Boolean {
-        if (!file.exists() || file.length() < 1_000_000L) return false
+        if (!file.exists() || file.length() < 50_000L) return false
         return try {
             FileInputStream(file).use { fis ->
                 val magic = ByteArray(4)
@@ -250,7 +306,7 @@ object WearBridgeManager {
     suspend fun downloadApkWithValidation(
         urlString: String,
         destinationFile: File,
-        expectedMinBytes: Long = 1_000_000L,
+        expectedMinBytes: Long = 50_000L,
         onProgress: (Float, Long, Long) -> Unit
     ): Result<File> = withContext(Dispatchers.IO) {
         var tempFile: File? = null

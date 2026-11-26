@@ -1,13 +1,14 @@
 package com.mohamedzayed.nocturne.wear
 
-import android.content.Context
-import android.content.Intent
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.Context
+import android.content.Intent
 import android.os.Build
-import androidx.core.app.NotificationCompat
+import android.os.PowerManager
 import android.util.Log
+import androidx.core.app.NotificationCompat
 import com.google.android.gms.wearable.ChannelClient
 import com.google.android.gms.wearable.MessageEvent
 import com.google.android.gms.wearable.Wearable
@@ -16,10 +17,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.tasks.await
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.tasks.await
 import org.json.JSONObject
 import java.io.File
+import java.security.MessageDigest
 
 class WatchFacePushListenerService : WearableListenerService() {
 
@@ -31,8 +33,9 @@ class WatchFacePushListenerService : WearableListenerService() {
         const val PATH_PONG = "/nocturne/pong"
         const val PATH_PUSH_CHANNEL = "/nocturne/push_v2/"
         private const val MAX_APK_BYTES = 150L * 1024 * 1024
+        const val PATH_PUSH_STAGE = "/nocturne/push_stage"
         const val PATH_PUSH_RESULT = "/nocturne/push_result"
-     }
+    }
 
     override fun onMessageReceived(messageEvent: MessageEvent) {
         val path = messageEvent.path
@@ -100,7 +103,6 @@ class WatchFacePushListenerService : WearableListenerService() {
                     }
                 }
             }
-
         }
     }
 
@@ -117,7 +119,17 @@ class WatchFacePushListenerService : WearableListenerService() {
             scope.launch { receiveWatchFace(channel, requestId) }
             return
         }
+    }
 
+    private suspend fun sendStage(nodeId: String, requestId: String, stage: String, detail: String) {
+        try {
+            val payload = JSONObject().put("stage", stage).put("detail", detail)
+            Wearable.getMessageClient(this)
+                .sendMessage(nodeId, "$PATH_PUSH_STAGE/$requestId", payload.toString().toByteArray())
+                .await()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to send stage $stage for $requestId", e)
+        }
     }
 
     private fun notifyBridgeUpdateReady() {
@@ -155,41 +167,50 @@ class WatchFacePushListenerService : WearableListenerService() {
 
     private suspend fun receiveWatchFace(channel: ChannelClient.Channel, requestId: String) {
         val channels = Wearable.getChannelClient(this)
+        val pm = getSystemService(Context.POWER_SERVICE) as? PowerManager
+        val wakeLock = pm?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "nocturne:push_transfer")
+        wakeLock?.acquire(10 * 60 * 1000L) // 10 minutes maximum
+
         var stage = "RECEIVE"
         val reply = JSONObject().put("success", false).put("isActive", false)
         var apk: File? = null
         try {
+            sendStage(channel.nodeId, requestId, "TRANSFER", "Receiving package on watch...")
             val tempApk = File.createTempFile("watchface-", ".apk", cacheDir)
             apk = tempApk
             val stream = channels.getInputStream(channel).await()
             val metadata = kotlinx.coroutines.runInterruptible {
-                java.io.DataInputStream(stream.buffered()).use { input ->
+                java.io.DataInputStream(stream.buffered(64 * 1024)).use { input ->
                     val request = JSONObject(input.readUTF())
                     val size = request.getLong("fileSize")
                     require(size in 1..MAX_APK_BYTES) { "حجم الحزمة غير مدعوم: $size" }
                     val expectedHash = request.getString("sha256")
-                    require(Regex("[0-9a-f]{64}").matches(expectedHash)) { "بصمة SHA-256 غير صالحة" }
-                    val digest = java.security.MessageDigest.getInstance("SHA-256")
-                    tempApk.outputStream().buffered().use { output ->
+                    require(Regex("[0-9a-f]{64}", RegexOption.IGNORE_CASE).matches(expectedHash)) { "بصمة SHA-256 غير صالحة" }
+                    val digest = MessageDigest.getInstance("SHA-256")
+                    tempApk.outputStream().buffered(64 * 1024).use { output ->
                         val buffer = ByteArray(64 * 1024)
                         var remaining = size
                         while (remaining > 0) {
-                            val count = input.read(buffer, 0, minOf(remaining, buffer.size.toLong()).toInt())
+                            val toRead = minOf(remaining, buffer.size.toLong()).toInt()
+                            val count = input.read(buffer, 0, toRead)
                             if (count < 0) throw java.io.EOFException("وصل ${size - remaining} من $size بايت")
                             output.write(buffer, 0, count)
                             digest.update(buffer, 0, count)
                             remaining -= count
                         }
+                        output.flush()
                     }
                     val actualHash = digest.digest().joinToString("") { "%02x".format(it) }
-                    check(tempApk.length() == size && actualHash == expectedHash) { "حجم الحزمة أو بصمة SHA-256 لا تتطابق" }
-                    check(input.read() == -1) { "استقبلت الساعة بيانات إضافية بعد نهاية الحزمة" }
+                    check(tempApk.length() == size && actualHash.equals(expectedHash, ignoreCase = true)) {
+                        "حجم الحزمة أو بصمة SHA-256 لا تتطابق"
+                    }
                     Log.i(TAG, "Verified $requestId bytes=$size sha256=$actualHash")
                     reply.put("fileSize", size).put("sha256", actualHash)
                     request
                 }
             }
             stage = "VALIDATE"
+            sendStage(channel.nodeId, requestId, "VALIDATE", "Verifying package signature...")
             val packageName = metadata.getString("packageName")
             reply.put("packageName", packageName)
             if (metadata.optString("kind") == "bridge") {
@@ -204,8 +225,19 @@ class WatchFacePushListenerService : WearableListenerService() {
                 reply.put("success", true)
                 runCatching { notifyBridgeUpdateReady() }
             } else {
-                installWatchFace(this, tempApk, metadata.getString("packageName"), metadata.getString("token"), requestId) { stage = it }
-                    .let { slotId -> reply.put("slotId", slotId).put("success", true).put("isActive", true) }
+                val installRes = installWatchFace(
+                    this,
+                    tempApk,
+                    metadata.getString("packageName"),
+                    metadata.getString("token"),
+                    requestId
+                ) { newStage ->
+                    stage = newStage
+                    scope.launch { sendStage(channel.nodeId, requestId, newStage, "") }
+                }
+                reply.put("slotId", installRes.slotId)
+                    .put("success", true)
+                    .put("isActive", installRes.isActive)
             }
         } catch (e: kotlinx.coroutines.CancellationException) {
             throw e
@@ -214,6 +246,9 @@ class WatchFacePushListenerService : WearableListenerService() {
             reply.put("error", e.localizedMessage ?: e.javaClass.simpleName)
         } finally {
             apk?.delete()
+            try {
+                if (wakeLock?.isHeld == true) wakeLock.release()
+            } catch (_: Exception) {}
         }
         try {
             reply.put("stage", stage)
@@ -223,7 +258,9 @@ class WatchFacePushListenerService : WearableListenerService() {
         } catch (e: Exception) {
             Log.e(TAG, "Could not deliver result for $requestId", e)
         } finally {
-            channels.close(channel)
+            try {
+                channels.close(channel)
+            } catch (_: Exception) {}
         }
     }
 }

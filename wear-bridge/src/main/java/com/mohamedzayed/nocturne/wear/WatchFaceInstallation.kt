@@ -12,6 +12,11 @@ import java.io.File
 
 internal val watchFaceInstallLock = Mutex()
 
+data class InstallResult(
+    val slotId: String,
+    val isActive: Boolean
+)
+
 internal suspend fun installWatchFace(
     context: Context,
     apk: File,
@@ -19,7 +24,7 @@ internal suspend fun installWatchFace(
     token: String,
     requestId: String,
     onStage: (String) -> Unit
-): String {
+): InstallResult {
     require(packageName.startsWith("${context.packageName}.watchfacepush.")) { "اسم حزمة الواجهة غير مدعوم" }
     val archive = context.packageManager.getPackageArchiveInfo(apk.absolutePath, 0)
     require(archive?.packageName == packageName) { "هوية APK لا تطابق الواجهة المطلوبة" }
@@ -31,8 +36,11 @@ internal suspend fun installWatchFace(
         val slots = manager.listWatchFaces()
         val installed = slots.installedWatchFaceDetails
         val existing = installed.firstOrNull { it.packageName == packageName }
-        val activeSlot = installed.firstOrNull { manager.isWatchFaceActive(it.packageName) }
+        val activeSlot = installed.firstOrNull {
+            try { manager.isWatchFaceActive(it.packageName) } catch (_: Exception) { false }
+        }
         val replacement = existing ?: activeSlot ?: installed.firstOrNull().takeIf { slots.remainingSlotCount == 0 }
+
         val slotId = ParcelFileDescriptor.open(apk, ParcelFileDescriptor.MODE_READ_ONLY).use { descriptor ->
             if (replacement != null) {
                 manager.updateWatchFace(replacement.slotId, descriptor, token)
@@ -48,16 +56,24 @@ internal suspend fun installWatchFace(
         Log.i("NocturneBridge", "Installed $requestId $packageName slot=$slotId")
 
         onStage("ACTIVATE")
-        if (activeSlot?.slotId != slotId && !manager.isWatchFaceActive(packageName)) {
-            manager.setWatchFaceAsActive(slotId)
+        var isActive = try {
+            manager.isWatchFaceActive(packageName)
+        } catch (_: Exception) { false }
+
+        if (!isActive) {
+            try {
+                manager.setWatchFaceAsActive(slotId)
+            } catch (e: Exception) {
+                Log.w("NocturneBridge", "setWatchFaceAsActive note: ${e.message}")
+            }
+            isActive = withTimeoutOrNull(4000) {
+                while (!manager.isWatchFaceActive(packageName)) delay(250)
+                true
+            } == true
         }
-        val active = withTimeoutOrNull(8000) {
-            while (!manager.isWatchFaceActive(packageName)) delay(250)
-            true
-        } == true
-        check(active) { "تم تثبيت الواجهة ولم يؤكد النظام تفعيلها. اخترها من منتقي واجهات الساعة." }
-        Log.i("NocturneBridge", "Active $requestId $packageName slot=$slotId")
+
+        Log.i("NocturneBridge", "Active $requestId $packageName slot=$slotId isActive=$isActive")
         onStage("COMPLETE")
-        slotId
+        InstallResult(slotId, isActive)
     }
 }

@@ -181,7 +181,7 @@ fun NocturneApp() {
                 }
 
                 // Push to watch
-                pushState = PushState.Transferring(0f, "Connecting to watch...")
+                pushState = PushState.Connecting("Connecting to watch...")
                 val result = WearBridgeManager.pushWatchFace(
                     context = context,
                     bridge = bridge,
@@ -189,11 +189,17 @@ fun NocturneApp() {
                     packageName = face.packageName,
                     token = face.validationToken,
                     kind = "wff",
-                    onProgress = { transferred ->
-                        pushState = if (transferred) {
-                            PushState.Installing("Installing on watch...")
-                        } else {
-                            PushState.Transferring(0.5f, "Transferring...")
+                    onProgress = { sentBytes, totalBytes ->
+                        val fraction = if (totalBytes > 0) (sentBytes.toFloat() / totalBytes).coerceIn(0f, 1f) else 0f
+                        pushState = PushState.Transferring(fraction, "${(fraction * 100).toInt()}%")
+                    },
+                    onStage = { stage, detail ->
+                        when (stage) {
+                            "CONNECT" -> pushState = PushState.Connecting(detail.ifBlank { "Connecting..." })
+                            "TRANSFER" -> pushState = PushState.Transferring(0f, detail.ifBlank { "Streaming to watch..." })
+                            "VALIDATE" -> pushState = PushState.Validating(detail.ifBlank { "Validating on watch..." })
+                            "INSTALL", "ACTIVATE" -> pushState = PushState.Installing(detail.ifBlank { "Installing on watch..." })
+                            "WAIT_RESULT" -> pushState = PushState.Installing("Awaiting watch confirmation...")
                         }
                     }
                 )

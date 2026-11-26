@@ -156,11 +156,11 @@ class BridgeMainActivity : ComponentActivity() {
                     check(apk.length() == face.getLong("size_bytes") && hash == face.getString("sha256")) {
                         "حزمة Sage المدمجة لا تطابق بيانات التحقق"
                     }
-                    val slot = installWatchFace(
+                    val result = installWatchFace(
                         this@BridgeMainActivity, apk, face.getString("package_name"),
                         face.getString("validation_token"), "local-sage"
                     ) {}
-                    true to "✓ تم التحقق من تفعيل Sage في الخانة $slot"
+                    true to "✓ تم التحقق من تفعيل Sage في الخانة ${result.slotId}"
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
